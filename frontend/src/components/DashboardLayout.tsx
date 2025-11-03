@@ -2,7 +2,7 @@ import { ReactNode, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LogOut, Home, Plus, Package, TrendingUp, Users, Truck, Settings, QrCode, Trophy, User, AlertCircle, BarChart3, ShieldCheck, Calendar, Award, FileText, Map, CheckCircle, Bell } from "lucide-react";
+import { LogOut, Home, Plus, Package, TrendingUp, Users, Truck, Settings, QrCode, Trophy, User, AlertCircle, BarChart3, ShieldCheck, Calendar, Award, FileText, Map, CheckCircle, Bell, Megaphone } from "lucide-react";
 import { logout, getNotifications, markNotificationAsRead } from "@/lib/api";
 import {
   DropdownMenu,
@@ -11,6 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Chatbot } from "@/components/Chatbot";
+import { AdvertisementBanner } from "@/components/AdvertisementBanner";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -97,6 +99,7 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       { path: "/dashboard/admin/analytics", label: "Analytics", icon: BarChart3 },
       { path: "/dashboard/admin/users", label: "Manage Users", icon: Users },
       { path: "/dashboard/admin/verification", label: "Verification", icon: ShieldCheck },
+      { path: "/dashboard/admin/advertisements", label: "Advertisements", icon: Megaphone },
       { path: "/dashboard/admin/forecasting", label: "AI Forecasting", icon: TrendingUp },
       { path: "/dashboard/admin/seasonal", label: "Seasonal Insights", icon: Calendar },
       { path: "/dashboard/admin/impact", label: "Impact Dashboard", icon: Award },
@@ -203,8 +206,15 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
 
       {/* Main Content */}
       <main className="flex-1 p-8 overflow-auto">
+        {/* Advertisement Banner for donors, NGOs, and logistics */}
+        {(userRole === 'donor' || userRole === 'ngo' || userRole === 'logistics') && (
+          <AdvertisementBanner userRole={userRole} />
+        )}
         {children}
       </main>
+
+      {/* Chatbot - Only for Donor */}
+      {userRole === 'donor' && <Chatbot />}
     </div>
   );
 };

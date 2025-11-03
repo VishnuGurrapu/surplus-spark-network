@@ -9,6 +9,8 @@ import logisticsRoutes from './routes/logisticsRoutes';
 import adminRoutes from './routes/adminRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import aadhaarRoutes from './routes/aadhaarRoutes';
+import chatbotRoutes from './routes/chatbotRoutes';
+import advertisementRoutes from './routes/advertisementRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -19,8 +21,14 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:8080',
+    'http://localhost:5173',
+    'http://localhost:8080'
+  ],
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -33,6 +41,8 @@ app.use('/api/logistics', logisticsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/aadhaar', aadhaarRoutes);
+app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/advertisements', advertisementRoutes);
 
 // Health check route
 app.get('/api/health', (req: Request, res: Response) => {

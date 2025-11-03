@@ -1,6 +1,6 @@
 import express from 'express';
 import { body } from 'express-validator';
-import { authenticate, authorizeRoles } from '../middleware/auth';
+import { authenticate, authorizeRoles, requireVerification } from '../middleware/auth';
 import {
   createSurplus,
   getDonorSurplus,
@@ -27,14 +27,14 @@ const surplusValidation = [
   body('location.address').trim().notEmpty().withMessage('Address is required'),
 ];
 
-router.post('/surplus', surplusValidation, createSurplus);
+router.post('/surplus', surplusValidation, requireVerification, createSurplus);
 router.get('/surplus', getDonorSurplus);
 router.get('/surplus/:id', getSurplusById);
 router.patch('/surplus/:id', updateSurplus);
 router.get('/impact', getDonorImpact);
 router.get('/tracking/:id', trackDonation);
 router.get('/leaderboard', getDonorLeaderboard);
-router.post('/surplus/:id/accept', acceptSurplusRequest);
-router.post('/surplus/:id/reject', rejectSurplusRequest);
+router.post('/surplus/:id/accept', requireVerification, acceptSurplusRequest);
+router.post('/surplus/:id/reject', requireVerification, rejectSurplusRequest);
 
 export default router;

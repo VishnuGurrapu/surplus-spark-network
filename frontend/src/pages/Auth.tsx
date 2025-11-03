@@ -16,7 +16,8 @@ import {
   RegisterData, 
   LoginData,
   startAadhaarVerification,
-  confirmAadhaarVerification 
+  confirmAadhaarVerification,
+  getCurrentProfile
 } from "@/lib/api";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -65,7 +66,9 @@ const Auth = () => {
     setLoading(true);
 
     try {
+      console.log('Attempting login with:', { email: loginForm.email, role });
       const response = await loginUser(loginForm);
+      console.log('Login response:', response);
       
       if (response.success && response.data) {
         setAuthToken(response.data.token);
@@ -79,6 +82,7 @@ const Auth = () => {
         setError(response.message || "Login failed");
       }
     } catch (err: any) {
+      console.error('Login error details:', err);
       setError(err.message || "An error occurred during login");
     } finally {
       setLoading(false);
@@ -116,7 +120,7 @@ const Auth = () => {
         if (role === 'donor') {
           setTempToken(response.data.token);
           setAuthToken(response.data.token);
-          setSuccess("Account created! Please verify your Aadhaar to continue.");
+          setSuccess("Account details saved! Please verify your Aadhaar to complete registration and create your account.");
           setShowAadhaarVerification(true);
         } else {
           // For other roles, proceed directly
@@ -157,7 +161,14 @@ const Auth = () => {
       if (response.success) {
         setOtpSent(true);
         setMaskedPhone(response.data?.maskedPhone || "");
-        setSuccess(response.message || "OTP sent successfully!");
+        
+        // Show OTP in success message for demo
+        const demoOtp = response.data?.demoOtp;
+        if (demoOtp) {
+          setSuccess(`OTP sent! Demo OTP: ${demoOtp} (valid for 5 minutes)`);
+        } else {
+          setSuccess(response.message || "OTP sent successfully!");
+        }
       } else {
         setError(response.message || "Failed to send OTP");
       }
@@ -179,16 +190,21 @@ const Auth = () => {
       
       if (response.success) {
         setAadhaarVerified(true);
-        setSuccess("Aadhaar verified successfully! Redirecting to dashboard...");
+        setSuccess("Aadhaar verified! Your donor account has been created successfully. Redirecting to dashboard...");
         
-        // Set user data and redirect
-        if (tempToken) {
-          setAuthToken(tempToken);
-          // Fetch user profile if needed
-          setTimeout(() => {
-            navigate(config?.dashboard || "/");
-          }, 1500);
+        // Update token with new verified status and actual user data
+        if (response.data?.token) {
+          setAuthToken(response.data.token);
         }
+        
+        // Set user data from response
+        if (response.data?.user) {
+          setUser(response.data.user);
+        }
+        
+        setTimeout(() => {
+          navigate(config?.dashboard || "/");
+        }, 2000);
       } else {
         setError(response.message || "Failed to verify OTP");
       }
@@ -201,10 +217,10 @@ const Auth = () => {
 
   const handleSkipAadhaar = () => {
     if (tempToken) {
-      setSuccess("You can verify your Aadhaar later from your profile. Redirecting...");
+      setSuccess("You can verify your Aadhaar later from your profile. Note: Some features will be limited until verification.");
       setTimeout(() => {
         navigate(config?.dashboard || "/");
-      }, 1500);
+      }, 2000);
     }
   };
 
@@ -265,7 +281,7 @@ const Auth = () => {
                       disabled={loading}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Use demo Aadhaar: 123412341234
+                      Demo Aadhaar numbers: 374839462289, 632032286346, 476089247816
                     </p>
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
@@ -278,7 +294,7 @@ const Auth = () => {
                     onClick={handleSkipAadhaar}
                     disabled={loading}
                   >
-                    Skip for Now
+                    Skip for Now (Limited Access)
                   </Button>
                 </form>
               )}
@@ -299,7 +315,7 @@ const Auth = () => {
                       disabled={loading}
                     />
                     <p className="text-xs text-muted-foreground">
-                      OTP sent to {maskedPhone}. Check console for demo OTP.
+                      OTP sent to {maskedPhone}. Check the success message above for demo OTP.
                     </p>
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
@@ -472,7 +488,7 @@ const Auth = () => {
                       <Alert className="bg-blue-50 text-blue-900 border-blue-200">
                         <Shield className="h-4 w-4" />
                         <AlertDescription>
-                          You'll be asked to verify your Aadhaar after registration for enhanced security.
+                          Aadhaar verification is required to complete registration and access all donor features.
                         </AlertDescription>
                       </Alert>
                     </>

@@ -6,7 +6,7 @@ dotenv.config();
 
 const mockData = [
   { aadhaar: '374839462289', linkedPhone: '+917569680923', name: 'Vishnu' },
-  { aadhaar: '632032286346', linkedPhone: '+919704093653', name: 'Rishith Reddy' },
+  { aadhaar: '632032286346', linkedPhone: '+919704093653', name: 'Rishith Reddy' }, // Your number - must be verified in Twilio
   { aadhaar: '476089247816', linkedPhone: '+919391187288', name: 'Javeed Shaik' },
   { aadhaar: '456745674567', linkedPhone: '+919876543213', name: 'Restaurant Owner' },
   { aadhaar: '567856785678', linkedPhone: '+919876543214', name: 'Grocery Store' },
