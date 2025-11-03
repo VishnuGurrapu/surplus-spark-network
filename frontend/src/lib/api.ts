@@ -27,6 +27,8 @@ export interface User {
   ngoRegistrationId?: string;
   vehicleType?: string;
   isVerified?: boolean;
+  isAadhaarVerified?: boolean;
+  aadhaarMasked?: string;
 }
 
 export interface AuthResponse {
@@ -41,6 +43,9 @@ export interface AuthResponse {
 
 export const register = async (data: RegisterData): Promise<AuthResponse> => {
   try {
+    console.log('Registering with data:', data);
+    console.log('Fetching:', `${API_BASE_URL}/auth/register`);
+    
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
       headers: {
@@ -50,17 +55,22 @@ export const register = async (data: RegisterData): Promise<AuthResponse> => {
       body: JSON.stringify(data),
     });
     
-    const result = await response.json();
-    
-    // Log the full response for debugging
     if (!response.ok) {
-      console.error('Registration error:', result);
+      const errorData = await response.json();
+      console.error('Registration error response:', errorData);
+      return errorData;
     }
     
+    const result = await response.json();
+    console.log('Registration success:', result);
     return result;
   } catch (error) {
     console.error('Network error during registration:', error);
-    throw error;
+    return {
+      success: false,
+      message: 'Network error. Please check if the backend server is running on port 3000.',
+      errors: [],
+    };
   }
 };
 
@@ -934,6 +944,353 @@ export const getLogisticsPerformance = async (): Promise<ApiResponse<any>> => {
     return response.json();
   } catch (error) {
     console.error('Network error during fetch performance:', error);
+    throw error;
+  }
+};
+
+// Aadhaar verification interfaces and functions
+export interface AadhaarStatus {
+  aadhaarMasked: string | null;
+  isVerified: boolean;
+  verifiedAt: string | null;
+}
+
+export const startAadhaarVerification = async (aadhaar: string): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/aadhaar/start-aadhaar-verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify({ aadhaar }),
+    });
+
+    // Handle rate limiting (429) or other non-JSON responses
+    if (response.status === 429) {
+      return {
+        success: false,
+        message: 'Too many OTP requests. Please wait 15 minutes before trying again.'
+      };
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    } else {
+      // Handle non-JSON responses
+      const text = await response.text();
+      return {
+        success: false,
+        message: text || 'An error occurred'
+      };
+    }
+  } catch (error) {
+    console.error('Network error during start Aadhaar verification:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Network error occurred'
+    };
+  }
+};
+
+export const confirmAadhaarVerification = async (aadhaar: string, otp: string): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/aadhaar/confirm-aadhaar-verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify({ aadhaar, otp }),
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during confirm Aadhaar verification:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Network error occurred'
+    };
+  }
+};
+
+export const getAadhaarStatus = async (): Promise<ApiResponse<AadhaarStatus>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/aadhaar/aadhaar-status`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during get Aadhaar status:', error);
+    throw error;
+  }
+};
+
+// Chatbot interfaces and functions
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp?: string;
+}
+
+export const sendChatMessage = async (message: string, conversationHistory: ChatMessage[] = []): Promise<ApiResponse<{ response: string; timestamp: string }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/chatbot/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify({ message, conversationHistory }),
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during chat:', error);
+    throw error;
+  }
+};
+
+export const getChatSuggestions = async (): Promise<ApiResponse<{ suggestions: string[] }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/chatbot/suggestions`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch suggestions:', error);
+    throw error;
+  }
+};
+
+// Helper function for API requests
+const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
+  try {
+    const token = getAuthToken();
+    
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('API request error:', error);
+    throw error;
+  }
+};
+
+// Advertisement APIs
+export const createAdvertisement = async (data: any) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/advertisements`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during create advertisement:', error);
+    throw error;
+  }
+};
+
+export const getAllAdvertisements = async () => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/advertisements`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch advertisements:', error);
+    throw error;
+  }
+};
+
+export const getActiveAdvertisements = async () => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/advertisements/active`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch active advertisements:', error);
+    throw error;
+  }
+};
+
+export const updateAdvertisement = async (id: string, data: any) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/advertisements/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during update advertisement:', error);
+    throw error;
+  }
+};
+
+export const toggleAdvertisementStatus = async (id: string) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/advertisements/${id}/toggle`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during toggle advertisement:', error);
+    throw error;
+  }
+};
+
+export const deleteAdvertisement = async (id: string) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/advertisements/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during delete advertisement:', error);
+    throw error;
+  }
+};
+
+export const trackAdvertisementClick = async (id: string) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/advertisements/${id}/click`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during track click:', error);
     throw error;
   }
 };
