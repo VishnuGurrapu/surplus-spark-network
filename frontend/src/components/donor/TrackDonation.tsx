@@ -1,16 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { QrCode, Search, CheckCircle2, Package, Truck, MapPin, Loader2, AlertCircle } from "lucide-react";
+import { QrCode, Search, CheckCircle2, Package, Truck, MapPin, Loader2, AlertCircle, Navigation } from "lucide-react";
 import { trackDonationById } from "@/lib/api";
+import { loadGoogleMapsScript, createMap, createMarker, geocodeAddress, getDirections } from "@/lib/googleMaps";
 
 const TrackDonation = () => {
   const [donationId, setDonationId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [trackingData, setTrackingData] = useState<any>(null);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [map, setMap] = useState<any>(null);
+  const [mapLoading, setMapLoading] = useState(false);
 
   const handleTrack = async () => {
     if (!donationId.trim()) {
@@ -26,6 +30,9 @@ const TrackDonation = () => {
 
       if (response.success && response.data) {
         setTrackingData(response.data);
+        if (response.data.surplus?.location?.address) {
+          initializeMap(response.data);
+        }
       } else {
         setError(response.message || "Donation not found");
       }
@@ -34,6 +41,98 @@ const TrackDonation = () => {
       setError(err.message || "An error occurred while tracking");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const initializeMap = async (data: any) => {
+    try {
+      setMapLoading(true);
+      await loadGoogleMapsScript();
+
+      if (!mapRef.current) return;
+
+      const pickupAddress = data.surplus?.location?.address || "Mumbai, India";
+      const deliveryAddress = data.task?.ngoId?.address || data.task?.deliveryLocation?.address;
+
+      const pickupLocation = await geocodeAddress(pickupAddress);
+      
+      if (!pickupLocation) {
+        console.warn('Could not geocode pickup address');
+        setMapLoading(false);
+        return;
+      }
+
+      const mapInstance = createMap(mapRef.current, {
+        center: { lat: pickupLocation.lat(), lng: pickupLocation.lng() },
+        zoom: 13,
+        mapId: import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID',
+      });
+
+      setMap(mapInstance);
+
+      // Pickup marker
+      createMarker({
+        position: pickupLocation,
+        map: mapInstance,
+        title: 'Pickup Location',
+        label: 'P',
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 10,
+          fillColor: '#0b66d0',
+          fillOpacity: 1,
+          strokeColor: '#fff',
+          strokeWeight: 2,
+        },
+      });
+
+      // Delivery marker and route if available
+      if (deliveryAddress) {
+        const deliveryLocation = await geocodeAddress(deliveryAddress);
+        if (deliveryLocation) {
+          createMarker({
+            position: deliveryLocation,
+            map: mapInstance,
+            title: 'Delivery Location',
+            label: 'D',
+            icon: {
+              path: window.google.maps.SymbolPath.CIRCLE,
+              scale: 10,
+              fillColor: '#16a34a',
+              fillOpacity: 1,
+              strokeColor: '#fff',
+              strokeWeight: 2,
+            },
+          });
+
+          // Draw route if in transit or delivered
+          if (data.surplus?.status === 'in-transit' || data.surplus?.status === 'delivered') {
+            const directions = await getDirections(pickupLocation, deliveryLocation);
+            if (directions) {
+              const renderer = new window.google.maps.DirectionsRenderer({
+                map: mapInstance,
+                suppressMarkers: true,
+                polylineOptions: {
+                  strokeColor: '#0b66d0',
+                  strokeWeight: 4,
+                },
+              });
+              renderer.setDirections(directions);
+            }
+          }
+
+          // Fit bounds to show both markers
+          const bounds = new window.google.maps.LatLngBounds();
+          bounds.extend(pickupLocation);
+          bounds.extend(deliveryLocation);
+          mapInstance.fitBounds(bounds);
+        }
+      }
+
+      setMapLoading(false);
+    } catch (err) {
+      console.error('Map initialization error:', err);
+      setMapLoading(false);
     }
   };
 
@@ -177,6 +276,32 @@ const TrackDonation = () => {
                   <p className="text-sm text-muted-foreground capitalize">
                     {trackingData.surplus.status.replace('-', ' ')}
                   </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {trackingData.surplus?.location?.address && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Delivery Map</CardTitle>
+                <CardDescription>Track your donation's journey on the map</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="relative w-full h-96 bg-muted rounded-lg overflow-hidden">
+                  {mapLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                      <span className="ml-2">Loading map...</span>
+                    </div>
+                  )}
+                  <div ref={mapRef} className="w-full h-full" />
+                </div>
+                <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                  <MapPin className="w-4 h-4 text-primary" />
+                  <span>P = Pickup Location</span>
+                  <MapPin className="w-4 h-4 text-success" />
+                  <span>D = Delivery Location</span>
                 </div>
               </CardContent>
             </Card>

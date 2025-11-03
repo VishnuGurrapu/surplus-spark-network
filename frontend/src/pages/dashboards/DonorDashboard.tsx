@@ -9,6 +9,7 @@ import TrackDonation from "@/components/donor/TrackDonation";
 import Impact from "@/components/donor/Impact";
 import Leaderboard from "@/components/donor/Leaderboard";
 import Profile from "@/components/donor/Profile";
+import NearbyNGOFinder from "@/components/donor/NearbyNGOFinder";
 
 const DonorDashboard = () => {
   return (
@@ -18,6 +19,7 @@ const DonorDashboard = () => {
         <Route path="donations" element={<MyDonations />} />
         <Route path="add-surplus" element={<AddSurplus />} />
         <Route path="track" element={<TrackDonation />} />
+        <Route path="find-ngos" element={<NearbyNGOFinder />} />
         <Route path="impact" element={<Impact />} />
         <Route path="leaderboard" element={<Leaderboard />} />
         <Route path="profile" element={<Profile />} />

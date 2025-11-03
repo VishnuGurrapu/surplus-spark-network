@@ -1,14 +1,100 @@
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, Navigation, Maximize2, Map } from "lucide-react";
+import { MapPin, Navigation, Loader2, Map, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { loadGoogleMapsScript, isGoogleMapsLoaded, createMap, geocodeAddress, getDirections } from "@/lib/googleMaps";
 
 const RouteMap = () => {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [map, setMap] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [directionsRenderer, setDirectionsRenderer] = useState<any>(null);
+
   const waypoints = [
     { name: "Green Grocery Store", address: "123 Main St", type: "pickup", time: "10:30 AM" },
     { name: "Hope Foundation", address: "456 Community Ave", type: "delivery", time: "11:15 AM" },
     { name: "Fashion Outlet", address: "789 Fashion St", type: "pickup", time: "12:00 PM" },
     { name: "Care Center", address: "321 Support Rd", type: "delivery", time: "12:45 PM" }
   ];
+
+  useEffect(() => {
+    initializeMap();
+  }, []);
+
+  const initializeMap = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      await loadGoogleMapsScript();
+
+      if (!mapRef.current) return;
+
+      const mapInstance = createMap(mapRef.current, {
+        center: { lat: 19.0760, lng: 72.8777 },
+        zoom: 12,
+        mapId: import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID',
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
+      });
+
+      setMap(mapInstance);
+
+      const renderer = new window.google.maps.DirectionsRenderer({
+        map: mapInstance,
+        suppressMarkers: false,
+        polylineOptions: {
+          strokeColor: '#0b66d0',
+          strokeWeight: 5,
+          strokeOpacity: 0.8,
+        },
+      });
+      setDirectionsRenderer(renderer);
+
+      // Calculate and display route
+      if (waypoints.length >= 2) {
+        await calculateRoute(waypoints, renderer, mapInstance);
+      }
+
+      setLoading(false);
+    } catch (err: any) {
+      console.error('Map initialization error:', err);
+      setError(err.message || 'Failed to load map. Please check your API key configuration.');
+      setLoading(false);
+    }
+  };
+
+  const calculateRoute = async (points: typeof waypoints, renderer: any, mapInstance: any) => {
+    if (points.length < 2) return;
+
+    try {
+      const origin = points[0].address;
+      const destination = points[points.length - 1].address;
+      const waypointsForRoute = points.slice(1, -1).map(wp => ({
+        location: wp.address,
+        stopover: true,
+      }));
+
+      const result = await getDirections(origin, destination, 'DRIVING');
+      
+      if (result && renderer) {
+        renderer.setDirections(result);
+      }
+    } catch (err) {
+      console.error('Route calculation error:', err);
+    }
+  };
+
+  const openInGoogleMaps = () => {
+    if (waypoints.length === 0) return;
+    const origin = encodeURIComponent(waypoints[0].address);
+    const destination = encodeURIComponent(waypoints[waypoints.length - 1].address);
+    const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+    window.open(url, '_blank');
+  };
 
   return (
     <div className="space-y-6">
@@ -17,27 +103,36 @@ const RouteMap = () => {
         <p className="text-muted-foreground">View your delivery routes and navigation</p>
       </div>
 
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Delivery Route</CardTitle>
           <CardDescription>Your optimized delivery path for today</CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Map Placeholder */}
-          <div className="w-full h-96 bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5" />
-            <div className="text-center z-10">
-              <Map className="w-16 h-16 mx-auto mb-4 text-primary opacity-50" />
-              <p className="text-lg font-medium mb-2">Interactive Map Coming Soon</p>
-              <p className="text-sm text-muted-foreground mb-4">
-                Google Maps API integration will be available soon
-              </p>
-              <Button variant="outline" disabled>
+          <div className="relative w-full h-96 bg-muted rounded-lg overflow-hidden">
+            {loading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <span className="ml-2">Loading map...</span>
+              </div>
+            )}
+            <div ref={mapRef} className="w-full h-full" />
+          </div>
+          {!loading && !error && (
+            <div className="mt-4 flex justify-end">
+              <Button onClick={openInGoogleMaps} variant="outline">
                 <Navigation className="w-4 h-4 mr-2" />
-                Open in Maps
+                Open in Google Maps
               </Button>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
