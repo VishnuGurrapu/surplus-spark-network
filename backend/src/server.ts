@@ -8,6 +8,7 @@ import ngoRoutes from './routes/ngoRoutes';
 import logisticsRoutes from './routes/logisticsRoutes';
 import adminRoutes from './routes/adminRoutes';
 import notificationRoutes from './routes/notificationRoutes';
+import aadhaarRoutes from './routes/aadhaarRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -31,6 +32,7 @@ app.use('/api/ngo', ngoRoutes);
 app.use('/api/logistics', logisticsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/aadhaar', aadhaarRoutes);
 
 // Health check route
 app.get('/api/health', (req: Request, res: Response) => {

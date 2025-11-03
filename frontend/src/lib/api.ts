@@ -937,3 +937,81 @@ export const getLogisticsPerformance = async (): Promise<ApiResponse<any>> => {
     throw error;
   }
 };
+
+// Aadhaar verification interfaces and functions
+export interface AadhaarStatus {
+  aadhaarMasked: string | null;
+  isVerified: boolean;
+  verifiedAt: string | null;
+}
+
+export const startAadhaarVerification = async (aadhaar: string): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/aadhaar/start-aadhaar-verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify({ aadhaar }),
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during start Aadhaar verification:', error);
+    throw error;
+  }
+};
+
+export const confirmAadhaarVerification = async (aadhaar: string, otp: string): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/aadhaar/confirm-aadhaar-verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify({ aadhaar, otp }),
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during confirm Aadhaar verification:', error);
+    throw error;
+  }
+};
+
+export const getAadhaarStatus = async (): Promise<ApiResponse<AadhaarStatus>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/aadhaar/aadhaar-status`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during get Aadhaar status:', error);
+    throw error;
+  }
+};

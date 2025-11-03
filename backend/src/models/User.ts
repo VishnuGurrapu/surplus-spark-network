@@ -13,6 +13,10 @@ export interface IUser extends Document {
   
   // Donor specific fields
   donorType?: 'individual' | 'restaurant' | 'grocery' | 'hotel';
+  aadhaarMasked?: string;
+  aadhaarHash?: string;
+  isAadhaarVerified?: boolean;
+  aadhaarVerifiedAt?: Date;
   
   // NGO specific fields
   ngoRegistrationId?: string;
@@ -62,6 +66,22 @@ const userSchema = new Schema<IUser>(
     donorType: {
       type: String,
       enum: ['individual', 'restaurant', 'grocery', 'hotel'],
+      required: false,
+    },
+    aadhaarMasked: {
+      type: String,
+      required: false,
+    },
+    aadhaarHash: {
+      type: String,
+      required: false,
+    },
+    isAadhaarVerified: {
+      type: Boolean,
+      default: false,
+    },
+    aadhaarVerifiedAt: {
+      type: Date,
       required: false,
     },
     

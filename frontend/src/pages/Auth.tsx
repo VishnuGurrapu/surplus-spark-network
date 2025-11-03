@@ -7,8 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion } from "framer-motion";
-import { ArrowLeft, AlertCircle } from "lucide-react";
-import { register as registerUser, login as loginUser, setAuthToken, setUser, RegisterData, LoginData } from "@/lib/api";
+import { ArrowLeft, AlertCircle, Shield, CheckCircle } from "lucide-react";
+import { 
+  register as registerUser, 
+  login as loginUser, 
+  setAuthToken, 
+  setUser, 
+  RegisterData, 
+  LoginData,
+  startAadhaarVerification,
+  confirmAadhaarVerification 
+} from "@/lib/api";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Auth = () => {
@@ -18,6 +27,15 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Aadhaar verification states (for donors)
+  const [showAadhaarVerification, setShowAadhaarVerification] = useState(false);
+  const [aadhaarNumber, setAadhaarNumber] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [maskedPhone, setMaskedPhone] = useState("");
+  const [aadhaarVerified, setAadhaarVerified] = useState(false);
+  const [tempToken, setTempToken] = useState<string | null>(null);
 
   // Form states
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
@@ -91,18 +109,25 @@ const Auth = () => {
         registerData.vehicleType = signupForm.vehicleType as any;
       }
 
-      console.log('Sending registration data:', registerData); // Debug log
-
       const response = await registerUser(registerData);
       
       if (response.success && response.data) {
-        setAuthToken(response.data.token);
-        setUser(response.data.user);
-        setSuccess("Registration successful! Redirecting...");
-        
-        setTimeout(() => {
-          navigate(config?.dashboard || "/");
-        }, 1000);
+        // For donors, show Aadhaar verification
+        if (role === 'donor') {
+          setTempToken(response.data.token);
+          setAuthToken(response.data.token);
+          setSuccess("Account created! Please verify your Aadhaar to continue.");
+          setShowAadhaarVerification(true);
+        } else {
+          // For other roles, proceed directly
+          setAuthToken(response.data.token);
+          setUser(response.data.user);
+          setSuccess("Registration successful! Redirecting...");
+          
+          setTimeout(() => {
+            navigate(config?.dashboard || "/");
+          }, 1000);
+        }
       } else {
         // Handle validation errors
         if (response.errors && response.errors.length > 0) {
@@ -120,9 +145,186 @@ const Auth = () => {
     }
   };
 
+  const handleSendOTP = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+
+    try {
+      const response = await startAadhaarVerification(aadhaarNumber);
+      
+      if (response.success) {
+        setOtpSent(true);
+        setMaskedPhone(response.data?.maskedPhone || "");
+        setSuccess(response.message || "OTP sent successfully!");
+      } else {
+        setError(response.message || "Failed to send OTP");
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred while sending OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+
+    try {
+      const response = await confirmAadhaarVerification(aadhaarNumber, otp);
+      
+      if (response.success) {
+        setAadhaarVerified(true);
+        setSuccess("Aadhaar verified successfully! Redirecting to dashboard...");
+        
+        // Set user data and redirect
+        if (tempToken) {
+          setAuthToken(tempToken);
+          // Fetch user profile if needed
+          setTimeout(() => {
+            navigate(config?.dashboard || "/");
+          }, 1500);
+        }
+      } else {
+        setError(response.message || "Failed to verify OTP");
+      }
+    } catch (err: any) {
+      setError(err.message || "An error occurred during OTP verification");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSkipAadhaar = () => {
+    if (tempToken) {
+      setSuccess("You can verify your Aadhaar later from your profile. Redirecting...");
+      setTimeout(() => {
+        navigate(config?.dashboard || "/");
+      }, 1500);
+    }
+  };
+
   if (!config) {
     navigate("/select-role");
     return null;
+  }
+
+  // Show Aadhaar verification screen for donors
+  if (showAadhaarVerification && role === 'donor') {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-background to-primary/5 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-md"
+        >
+          <Card className="shadow-2xl">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                <Shield className="w-6 h-6 text-primary" />
+              </div>
+              <CardTitle className="text-2xl">Verify Your Aadhaar</CardTitle>
+              <CardDescription>
+                {aadhaarVerified 
+                  ? "Your Aadhaar has been verified successfully!" 
+                  : "Complete your donor verification to ensure trust and transparency"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {error && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              {success && (
+                <Alert className="mb-4 bg-green-50 text-green-900 border-green-200">
+                  {aadhaarVerified && <CheckCircle className="h-4 w-4" />}
+                  <AlertDescription>{success}</AlertDescription>
+                </Alert>
+              )}
+
+              {!aadhaarVerified && !otpSent && (
+                <form onSubmit={handleSendOTP} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="aadhaar">Aadhaar Number</Label>
+                    <Input 
+                      id="aadhaar" 
+                      type="text" 
+                      placeholder="Enter 12-digit Aadhaar number"
+                      required 
+                      maxLength={12}
+                      pattern="[0-9]{12}"
+                      value={aadhaarNumber}
+                      onChange={(e) => setAadhaarNumber(e.target.value.replace(/\D/g, ''))}
+                      disabled={loading}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Use demo Aadhaar: 123412341234
+                    </p>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Sending OTP..." : "Send OTP"}
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="w-full" 
+                    onClick={handleSkipAadhaar}
+                    disabled={loading}
+                  >
+                    Skip for Now
+                  </Button>
+                </form>
+              )}
+
+              {!aadhaarVerified && otpSent && (
+                <form onSubmit={handleVerifyOTP} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="otp">Enter OTP</Label>
+                    <Input 
+                      id="otp" 
+                      type="text" 
+                      placeholder="Enter 6-digit OTP"
+                      required 
+                      maxLength={6}
+                      pattern="[0-9]{6}"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                      disabled={loading}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      OTP sent to {maskedPhone}. Check console for demo OTP.
+                    </p>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? "Verifying..." : "Verify OTP"}
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="w-full" 
+                    onClick={() => {
+                      setOtpSent(false);
+                      setOtp("");
+                      setError(null);
+                    }}
+                    disabled={loading}
+                  >
+                    Resend OTP
+                  </Button>
+                </form>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    );
   }
 
   return (
@@ -248,24 +450,32 @@ const Auth = () => {
                   </div>
 
                   {role === "donor" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="donor-type">Donor Type</Label>
-                      <Select 
-                        value={signupForm.donorType} 
-                        onValueChange={(value) => setSignupForm({ ...signupForm, donorType: value })}
-                        disabled={loading}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="individual">Individual</SelectItem>
-                          <SelectItem value="restaurant">Restaurant</SelectItem>
-                          <SelectItem value="grocery">Grocery Store</SelectItem>
-                          <SelectItem value="hotel">Hotel</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="donor-type">Donor Type</Label>
+                        <Select 
+                          value={signupForm.donorType} 
+                          onValueChange={(value) => setSignupForm({ ...signupForm, donorType: value })}
+                          disabled={loading}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="individual">Individual</SelectItem>
+                            <SelectItem value="restaurant">Restaurant</SelectItem>
+                            <SelectItem value="grocery">Grocery Store</SelectItem>
+                            <SelectItem value="hotel">Hotel</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Alert className="bg-blue-50 text-blue-900 border-blue-200">
+                        <Shield className="h-4 w-4" />
+                        <AlertDescription>
+                          You'll be asked to verify your Aadhaar after registration for enhanced security.
+                        </AlertDescription>
+                      </Alert>
+                    </>
                   )}
 
                   {role === "ngo" && (
