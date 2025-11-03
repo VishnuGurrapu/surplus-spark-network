@@ -7,9 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, CheckCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, Navigation, Loader2 } from "lucide-react";
 import { createNGORequest, RequestData } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { AnimatePresence } from "framer-motion";
+import SuccessAnimation from "@/components/ui/SuccessAnimation";
+import { loadGoogleMapsScript } from "@/lib/googleMaps";
 
 const RequestSurplus = () => {
   const navigate = useNavigate();
@@ -17,6 +20,8 @@ const RequestSurplus = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -28,6 +33,102 @@ const RequestSurplus = () => {
     address: "",
     neededBy: "",
   });
+
+  const handleUseCurrentLocation = async () => {
+    setLocationLoading(true);
+    
+    try {
+      // Check if geolocation is available
+      if (!navigator.geolocation) {
+        toast({
+          title: "Error",
+          description: "Geolocation is not supported by your browser",
+          variant: "destructive",
+        });
+        setLocationLoading(false);
+        return;
+      }
+
+      // Get current position
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          
+          try {
+            // Load Google Maps script
+            await loadGoogleMapsScript();
+
+            // Use Google's Geocoding API to convert coordinates to address
+            const geocoder = new google.maps.Geocoder();
+            const latlng = { lat: latitude, lng: longitude };
+
+            geocoder.geocode({ location: latlng }, (results, status) => {
+              if (status === "OK" && results && results[0]) {
+                const address = results[0].formatted_address;
+                setFormData({ ...formData, address });
+                
+                toast({
+                  title: "Location Detected",
+                  description: "Your current location has been set as delivery address",
+                });
+              } else {
+                toast({
+                  title: "Error",
+                  description: "Could not fetch address from your location",
+                  variant: "destructive",
+                });
+              }
+              setLocationLoading(false);
+            });
+          } catch (error) {
+            console.error("Geocoding error:", error);
+            toast({
+              title: "Error",
+              description: "Failed to convert location to address",
+              variant: "destructive",
+            });
+            setLocationLoading(false);
+          }
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          let errorMessage = "Could not get your location";
+          
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMessage = "Location permission denied. Please enable location access in your browser settings.";
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMessage = "Location information is unavailable.";
+              break;
+            case error.TIMEOUT:
+              errorMessage = "Location request timed out.";
+              break;
+          }
+          
+          toast({
+            title: "Location Error",
+            description: errorMessage,
+            variant: "destructive",
+          });
+          setLocationLoading(false);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
+    } catch (error) {
+      console.error("Location error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to get current location",
+        variant: "destructive",
+      });
+      setLocationLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -63,10 +164,9 @@ const RequestSurplus = () => {
 
       if (response.success) {
         setSuccess(true);
-        toast({
-          title: "Success!",
-          description: "Request created successfully",
-        });
+        
+        // Show success animation
+        setShowSuccessAnimation(true);
 
         // Reset form
         setFormData({
@@ -101,6 +201,15 @@ const RequestSurplus = () => {
 
   return (
     <div className="max-w-3xl space-y-6">
+      <AnimatePresence>
+        {showSuccessAnimation && (
+          <SuccessAnimation
+            title="Request Created!"
+            description="Your surplus request has been successfully submitted"
+          />
+        )}
+      </AnimatePresence>
+      
       <div>
         <h2 className="text-3xl font-bold mb-2">Request Surplus</h2>
         <p className="text-muted-foreground">Submit a request for items your organization needs</p>
@@ -216,14 +325,35 @@ const RequestSurplus = () => {
 
             <div className="space-y-2">
               <Label htmlFor="delivery-location">Delivery Location *</Label>
-              <Input 
-                id="delivery-location" 
-                placeholder="Enter delivery address" 
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                disabled={loading}
-                required
-              />
+              <div className="flex gap-2">
+                <Input 
+                  id="delivery-location" 
+                  placeholder="Enter delivery address" 
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  disabled={loading || locationLoading}
+                  required
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={handleUseCurrentLocation}
+                  disabled={loading || locationLoading}
+                  title="Use current location"
+                  className="shrink-0"
+                >
+                  {locationLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Navigation className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Click the location icon to auto-detect your current address
+              </p>
             </div>
 
             <div className="space-y-2">

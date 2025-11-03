@@ -9,6 +9,7 @@ import UrgentNeeds from "@/components/ngo/UrgentNeeds";
 import NGOLeaderboard from "@/components/ngo/NGOLeaderboard";
 import NGOProfile from "@/components/ngo/NGOProfile";
 import RequestTracking from "@/components/ngo/RequestTracking";
+import NearbyNGOFinder from "@/components/donor/NearbyNGOFinder";
 
 const NGODashboard = () => {
   return (
@@ -19,6 +20,7 @@ const NGODashboard = () => {
         <Route path="request" element={<RequestSurplus />} />
         <Route path="requests" element={<MyRequests />} />
         <Route path="track-requests" element={<RequestTracking />} />
+        <Route path="find-partners" element={<NearbyNGOFinder />} />
         <Route path="urgent" element={<UrgentNeeds />} />
         <Route path="impact" element={<ImpactReports />} />
         <Route path="leaderboard" element={<NGOLeaderboard />} />

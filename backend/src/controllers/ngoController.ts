@@ -248,6 +248,55 @@ export const getNGOImpact = async (req: AuthRequest, res: Response) => {
       { $group: { _id: null, total: { $sum: '$quantity' } } },
     ]);
 
+    // Get monthly distribution data for the last 6 months
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const monthlyData = await Surplus.aggregate([
+      {
+        $match: {
+          claimedBy: req.user?.userId,
+          status: 'delivered',
+          updatedAt: { $gte: sixMonthsAgo },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$updatedAt' },
+            month: { $month: '$updatedAt' },
+          },
+          count: { $sum: 1 },
+          totalQuantity: { $sum: '$quantity' },
+        },
+      },
+      {
+        $sort: { '_id.year': 1, '_id.month': 1 },
+      },
+    ]);
+
+    // Format monthly data into an array for the last 6 months
+    const monthlyDistribution = [];
+    const currentDate = new Date();
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(currentDate.getMonth() - i);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      
+      const monthData = monthlyData.find(
+        (d) => d._id.year === year && d._id.month === month
+      );
+      
+      monthlyDistribution.push({
+        month: date.toLocaleString('en-US', { month: 'short' }),
+        year: year,
+        count: monthData?.count || 0,
+        quantity: monthData?.totalQuantity || 0,
+      });
+    }
+
     res.json({
       success: true,
       data: {
@@ -256,6 +305,7 @@ export const getNGOImpact = async (req: AuthRequest, res: Response) => {
         receivedItems,
         totalQuantity: totalQuantity[0]?.total || 0,
         estimatedPeopleServed: (totalQuantity[0]?.total || 0) * 3, // Mock calculation
+        monthlyDistribution,
       },
     });
   } catch (error: any) {

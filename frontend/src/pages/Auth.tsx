@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+<<<<<<< Updated upstream
 import { motion } from "framer-motion";
 import { ArrowLeft, AlertCircle, Shield, CheckCircle } from "lucide-react";
 import { 
@@ -19,15 +20,27 @@ import {
   confirmAadhaarVerification,
   getCurrentProfile
 } from "@/lib/api";
+=======
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, AlertCircle, MapPin, Loader2 } from "lucide-react";
+import { register as registerUser, login as loginUser, setAuthToken, setUser, RegisterData, LoginData } from "@/lib/api";
+>>>>>>> Stashed changes
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import { loadGoogleMapsScript } from "@/lib/googleMaps";
+import SuccessAnimation from "@/components/ui/SuccessAnimation";
 
 const Auth = () => {
   const { role } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [successMessage, setSuccessMessage] = useState({ title: "Success!", description: "" });
 
   // Aadhaar verification states (for donors)
   const [showAadhaarVerification, setShowAadhaarVerification] = useState(false);
@@ -59,6 +72,78 @@ const Auth = () => {
 
   const config = roleConfig[role as keyof typeof roleConfig];
 
+  const handleUseCurrentLocation = async () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: "Error",
+        description: "Geolocation is not supported by your browser",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLocationLoading(true);
+    setError(null);
+
+    try {
+      // Get user's current position
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
+
+      // Load Google Maps and reverse geocode
+      await loadGoogleMapsScript();
+
+      const geocoder = new window.google.maps.Geocoder();
+      const result = await geocoder.geocode({
+        location: { lat: latitude, lng: longitude },
+      });
+
+      if (result.results && result.results[0]) {
+        const address = result.results[0].formatted_address;
+        setSignupForm({ ...signupForm, location: address });
+        
+        // Show success animation for location
+        setSuccessMessage({
+          title: "Success!",
+          description: "Current location detected"
+        });
+        setShowSuccessAnimation(true);
+        
+        setTimeout(() => {
+          setShowSuccessAnimation(false);
+        }, 1500);
+      } else {
+        throw new Error("Could not determine address from location");
+      }
+    } catch (err: any) {
+      console.error("Location error:", err);
+      let errorMessage = "Failed to get current location";
+      
+      if (err.code === 1) {
+        errorMessage = "Location access denied. Please enable location permissions.";
+      } else if (err.code === 2) {
+        errorMessage = "Location unavailable. Please try again.";
+      } else if (err.code === 3) {
+        errorMessage = "Location request timed out. Please try again.";
+      }
+
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -75,9 +160,16 @@ const Auth = () => {
         setUser(response.data.user);
         setSuccess("Login successful! Redirecting...");
         
+        // Show success animation
+        setSuccessMessage({
+          title: "Login Successful!",
+          description: `Welcome back to ${config.title} Dashboard`
+        });
+        setShowSuccessAnimation(true);
+        
         setTimeout(() => {
           navigate(config?.dashboard || "/");
-        }, 1000);
+        }, 2000);
       } else {
         setError(response.message || "Login failed");
       }
@@ -116,6 +208,7 @@ const Auth = () => {
       const response = await registerUser(registerData);
       
       if (response.success && response.data) {
+<<<<<<< Updated upstream
         // For donors, show Aadhaar verification
         if (role === 'donor') {
           setTempToken(response.data.token);
@@ -132,6 +225,22 @@ const Auth = () => {
             navigate(config?.dashboard || "/");
           }, 1000);
         }
+=======
+        setAuthToken(response.data.token);
+        setUser(response.data.user);
+        setSuccess("Registration successful! Redirecting...");
+        
+        // Show success animation
+        setSuccessMessage({
+          title: "Account Created!",
+          description: `Welcome to ${config.title} - Let's make an impact together!`
+        });
+        setShowSuccessAnimation(true);
+        
+        setTimeout(() => {
+          navigate(config?.dashboard || "/");
+        }, 2000);
+>>>>>>> Stashed changes
       } else {
         // Handle validation errors
         if (response.errors && response.errors.length > 0) {
@@ -344,22 +453,38 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-primary/5 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-background to-primary/5 flex items-center justify-center p-4 relative">
+      <AnimatePresence>
+        {showSuccessAnimation && (
+          <SuccessAnimation
+            title={successMessage.title}
+            description={successMessage.description}
+            onComplete={() => {
+              // Auto-hide after animation unless it's login/signup (they redirect)
+              if (!success?.includes("Redirecting")) {
+                setTimeout(() => setShowSuccessAnimation(false), 1000);
+              }
+            }}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Back Button - Top Left Corner */}
+      <Button
+        variant="ghost"
+        className="absolute top-4 left-4 z-10 hover:bg-primary/10"
+        onClick={() => navigate("/select-role")}
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Back
+      </Button>
+      
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <Button
-          variant="ghost"
-          className="mb-4"
-          onClick={() => navigate("/select-role")}
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to role selection
-        </Button>
-
         <Card className="shadow-2xl">
           <CardHeader className="text-center">
             <CardTitle className="text-3xl">{config.title}</CardTitle>
@@ -433,7 +558,7 @@ const Auth = () => {
                     <Input 
                       id="email-signup" 
                       type="email" 
-                      placeholder="example@email.com" 
+                      placeholder="example@gmail.com" 
                       required 
                       value={signupForm.email}
                       onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
@@ -454,15 +579,32 @@ const Auth = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="location">Location</Label>
-                    <Input 
-                      id="location" 
-                      type="text" 
-                      placeholder="City, State" 
-                      required 
-                      value={signupForm.location}
-                      onChange={(e) => setSignupForm({ ...signupForm, location: e.target.value })}
-                      disabled={loading}
-                    />
+                    <div className="flex gap-2">
+                      <Input 
+                        id="location" 
+                        type="text" 
+                        placeholder="City, State" 
+                        required 
+                        value={signupForm.location}
+                        onChange={(e) => setSignupForm({ ...signupForm, location: e.target.value })}
+                        disabled={loading || locationLoading}
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleUseCurrentLocation}
+                        disabled={loading || locationLoading}
+                        className="shrink-0"
+                      >
+                        {locationLoading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <MapPin className="w-4 h-4" />
+                        )}
+                        <span className="ml-2 hidden sm:inline">Use Current Location</span>
+                      </Button>
+                    </div>
                   </div>
 
                   {role === "donor" && (

@@ -70,6 +70,7 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       { path: "/dashboard/donor/add-surplus", label: "Add Surplus", icon: Plus },
       { path: "/dashboard/donor/donations", label: "My Donations", icon: Package },
       { path: "/dashboard/donor/track", label: "Track Donation", icon: QrCode },
+      { path: "/dashboard/donor/find-ngos", label: "Find NGOs", icon: Map },
       { path: "/dashboard/donor/impact", label: "Impact", icon: TrendingUp },
       { path: "/dashboard/donor/leaderboard", label: "Leaderboard", icon: Trophy },
       { path: "/dashboard/donor/profile", label: "Profile", icon: User },
@@ -80,6 +81,7 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       { path: "/dashboard/ngo/request", label: "Request Items", icon: Plus },
       { path: "/dashboard/ngo/requests", label: "My Requests", icon: Package },
       { path: "/dashboard/ngo/track-requests", label: "Track Requests", icon: QrCode },
+      { path: "/dashboard/ngo/find-partners", label: "Find Partners", icon: Map },
       { path: "/dashboard/ngo/urgent", label: "Urgent Needs", icon: AlertCircle },
       { path: "/dashboard/ngo/impact", label: "Impact", icon: TrendingUp },
       { path: "/dashboard/ngo/leaderboard", label: "Leaderboard", icon: Trophy },
@@ -118,9 +120,9 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-card border-r border-border p-6 flex flex-col">
+    <div className="h-screen bg-background flex overflow-hidden">
+      {/* Sidebar - Fixed */}
+      <aside className="w-64 bg-card border-r border-border p-6 flex flex-col h-screen overflow-y-auto">
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-primary">ShareGood</h1>
@@ -205,12 +207,17 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
         </Button>
       </aside>
 
+<<<<<<< Updated upstream
       {/* Main Content */}
       <main className="flex-1 p-8 overflow-auto">
         {/* Advertisement Banner for donors, NGOs, and logistics */}
         {(userRole === 'donor' || userRole === 'ngo' || userRole === 'logistics') && (
           <AdvertisementBanner userRole={userRole} />
         )}
+=======
+      {/* Main Content - Scrollable */}
+      <main className="flex-1 h-screen overflow-y-auto p-8">
+>>>>>>> Stashed changes
         {children}
       </main>
 
