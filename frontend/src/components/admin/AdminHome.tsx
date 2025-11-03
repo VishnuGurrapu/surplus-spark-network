@@ -1,29 +1,50 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Package, Truck, TrendingUp, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Users, Package, TrendingUp, Truck, Loader2, AlertCircle, BarChart3, ShieldCheck } from "lucide-react";
+import { getUser } from "@/lib/api";
 
 const AdminHome = () => {
-  const stats = [
-    { label: "Total Donations", value: "347", change: "+12%", icon: Package, color: "text-primary" },
-    { label: "Active Users", value: "1,234", change: "+8%", icon: Users, color: "text-success" },
-    { label: "In Transit", value: "45", change: "+5%", icon: Truck, color: "text-secondary" },
-    { label: "Platform Growth", value: "23%", change: "+3%", icon: TrendingUp, color: "text-warning" }
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const user = getUser();
+
+  // Mock stats - in production, fetch from /api/admin/overview
+  const stats = {
+    totalUsers: 423,
+    totalDonors: 328,
+    totalNGOs: 45,
+    totalLogistics: 18,
+    activeDonations: 156,
+    completedDeliveries: 1247,
+    systemHealth: 98,
+  };
+
+  const statsConfig = [
+    { label: "Total Users", value: stats.totalUsers, icon: Users, color: "text-primary" },
+    { label: "Active Donations", value: stats.activeDonations, icon: Package, color: "text-success" },
+    { label: "Completed Deliveries", value: stats.completedDeliveries, icon: Truck, color: "text-secondary" },
+    { label: "System Health", value: `${stats.systemHealth}%`, icon: TrendingUp, color: "text-warning" }
   ];
 
-  const recentAlerts = [
-    { type: "warning", message: "High demand for food supplies in District 5", time: "10 mins ago" },
-    { type: "info", message: "New NGO registration pending verification", time: "25 mins ago" },
-    { type: "success", message: "Delivery efficiency increased by 15%", time: "1 hour ago" }
+  const userBreakdown = [
+    { label: "Donors", value: stats.totalDonors, color: "bg-primary" },
+    { label: "NGOs", value: stats.totalNGOs, color: "bg-success" },
+    { label: "Logistics", value: stats.totalLogistics, color: "bg-secondary" },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold mb-2">System Overview</h2>
-        <p className="text-muted-foreground">Monitor platform activity and key metrics</p>
+        <h2 className="text-3xl font-bold mb-2">Welcome, {user?.name || 'Admin'}!</h2>
+        <p className="text-muted-foreground">Monitor and manage the entire platform</p>
       </div>
 
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
+        {statsConfig.map((stat, index) => (
           <Card key={index} className="hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -32,77 +53,139 @@ const AdminHome = () => {
               <stat.icon className={`w-5 h-5 ${stat.color}`} />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold mb-1">{stat.value}</div>
-              <p className="text-xs text-success">{stat.change} from last month</p>
+              <div className="text-3xl font-bold">{stat.value}</div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Live Map</CardTitle>
-            <CardDescription>Real-time surplus distribution</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="w-full h-64 bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-secondary/10" />
-              <div className="text-center z-10">
-                <Package className="w-12 h-12 mx-auto mb-3 text-primary" />
-                <p className="font-medium">Interactive Distribution Map</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Live tracking of all donations and deliveries
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-warning" />
-              Recent Alerts
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentAlerts.map((alert, index) => (
-                <div key={index} className="flex gap-3 p-3 bg-muted rounded-lg">
-                  <div className={`w-2 h-2 rounded-full mt-2 ${
-                    alert.type === "warning" ? "bg-warning" :
-                    alert.type === "success" ? "bg-success" : "bg-primary"
-                  }`} />
-                  <div className="flex-1">
-                    <p className="text-sm">{alert.message}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{alert.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
+      {/* User Breakdown */}
       <Card>
         <CardHeader>
-          <CardTitle>Platform Activity</CardTitle>
-          <CardDescription>Last 7 days</CardDescription>
+          <CardTitle>User Distribution</CardTitle>
+          <CardDescription>Platform users by role</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-48 flex items-end justify-between gap-2">
-            {[65, 78, 72, 85, 90, 88, 95].map((height, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div
-                  className="w-full bg-gradient-to-t from-primary to-secondary rounded-t-lg transition-all hover:opacity-80"
-                  style={{ height: `${height}%` }}
-                />
-                <span className="text-xs text-muted-foreground">
-                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i]}
-                </span>
+          <div className="space-y-4">
+            {userBreakdown.map((item, index) => (
+              <div key={index}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium">{item.label}</span>
+                  <span className="text-sm text-muted-foreground">{item.value} users</span>
+                </div>
+                <div className="h-3 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${item.color}`}
+                    style={{ width: `${(item.value / stats.totalUsers) * 100}%` }}
+                  />
+                </div>
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>Common administrative tasks</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Button 
+            className="h-auto py-6 flex-col gap-2"
+            onClick={() => navigate('/dashboard/admin/users')}
+          >
+            <Users className="w-6 h-6" />
+            <span>Manage Users</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="h-auto py-6 flex-col gap-2"
+            onClick={() => navigate('/dashboard/admin/analytics')}
+          >
+            <BarChart3 className="w-6 h-6" />
+            <span>View Analytics</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="h-auto py-6 flex-col gap-2"
+            onClick={() => navigate('/dashboard/admin/verification')}
+          >
+            <ShieldCheck className="w-6 h-6" />
+            <span>Verification</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="h-auto py-6 flex-col gap-2"
+            onClick={() => navigate('/dashboard/admin/forecasting')}
+          >
+            <TrendingUp className="w-6 h-6" />
+            <span>AI Forecasting</span>
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* System Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle>System Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-4 bg-success/10 border border-success/20 rounded-lg">
+              <div>
+                <p className="font-medium text-success">All Systems Operational</p>
+                <p className="text-sm text-muted-foreground">No issues detected</p>
+              </div>
+              <div className="w-3 h-3 bg-success rounded-full animate-pulse" />
+            </div>
+            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+              <div>
+                <p className="font-medium">Database</p>
+                <p className="text-sm text-muted-foreground">Connected</p>
+              </div>
+              <span className="text-sm text-success">Healthy</span>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+              <div>
+                <p className="font-medium">API Services</p>
+                <p className="text-sm text-muted-foreground">All endpoints responding</p>
+              </div>
+              <span className="text-sm text-success">Online</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recent Activity Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Platform Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+              <div>
+                <p className="font-medium">New User Registrations</p>
+                <p className="text-sm text-muted-foreground">Last 24 hours</p>
+              </div>
+              <span className="text-2xl font-bold text-primary">12</span>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+              <div>
+                <p className="font-medium">Donations Created</p>
+                <p className="text-sm text-muted-foreground">Last 24 hours</p>
+              </div>
+              <span className="text-2xl font-bold text-success">28</span>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+              <div>
+                <p className="font-medium">Deliveries Completed</p>
+                <p className="text-sm text-muted-foreground">Last 24 hours</p>
+              </div>
+              <span className="text-2xl font-bold text-secondary">45</span>
+            </div>
           </div>
         </CardContent>
       </Card>

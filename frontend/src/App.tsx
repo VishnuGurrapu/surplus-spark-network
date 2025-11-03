@@ -34,7 +34,7 @@ const App = () => (
             } 
           />
           <Route 
-            path="/dashboard/ngo" 
+            path="/dashboard/ngo/*" 
             element={
               <ProtectedRoute allowedRoles={['ngo']}>
                 <NGODashboard />
@@ -42,7 +42,7 @@ const App = () => (
             } 
           />
           <Route 
-            path="/dashboard/logistics" 
+            path="/dashboard/logistics/*" 
             element={
               <ProtectedRoute allowedRoles={['logistics']}>
                 <LogisticsDashboard />
@@ -50,7 +50,7 @@ const App = () => (
             } 
           />
           <Route 
-            path="/dashboard/admin" 
+            path="/dashboard/admin/*" 
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminDashboard />

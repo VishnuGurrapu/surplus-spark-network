@@ -1,17 +1,16 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Medal, Award, TrendingUp } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Trophy, Medal, Award, TrendingUp, Info } from "lucide-react";
 
 const Leaderboard = () => {
+  // Note: This would need a new backend endpoint GET /api/donor/leaderboard
+  // For now, showing placeholder
+
   const topDonors = [
     { rank: 1, name: "Sarah Johnson", points: 1250, donations: 65, icon: Trophy, color: "text-yellow-500" },
     { rank: 2, name: "Mike Chen", points: 1180, donations: 58, icon: Medal, color: "text-gray-400" },
     { rank: 3, name: "Emma Williams", points: 1050, donations: 52, icon: Award, color: "text-orange-600" },
-    { rank: 4, name: "John Doe (You)", points: 850, donations: 47, icon: null, color: "text-primary" },
-    { rank: 5, name: "Alex Kumar", points: 720, donations: 39, icon: null, color: "" },
-    { rank: 6, name: "Lisa Anderson", points: 680, donations: 35, icon: null, color: "" },
-    { rank: 7, name: "David Park", points: 615, donations: 31, icon: null, color: "" },
-    { rank: 8, name: "Sophie Martinez", points: 590, donations: 28, icon: null, color: "" },
   ];
 
   return (
@@ -21,9 +20,16 @@ const Leaderboard = () => {
         <p className="text-muted-foreground">Top contributors making a difference</p>
       </div>
 
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          Leaderboard feature is coming soon! This will show real-time rankings based on your impact.
+        </AlertDescription>
+      </Alert>
+
       <Card>
         <CardHeader>
-          <CardTitle>Top Donors This Month</CardTitle>
+          <CardTitle>Top Donors (Preview)</CardTitle>
           <CardDescription>Ranked by impact points and contributions</CardDescription>
         </CardHeader>
         <CardContent>
@@ -31,21 +37,11 @@ const Leaderboard = () => {
             {topDonors.map((donor) => (
               <div
                 key={donor.rank}
-                className={`flex items-center justify-between p-4 rounded-lg transition-all ${
-                  donor.name.includes("You")
-                    ? "bg-primary/10 border-2 border-primary"
-                    : "bg-muted hover:bg-muted/70"
-                }`}
+                className="flex items-center justify-between p-4 rounded-lg bg-muted"
               >
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2 min-w-[60px]">
-                    {donor.icon ? (
-                      <donor.icon className={`w-6 h-6 ${donor.color}`} />
-                    ) : (
-                      <span className="text-2xl font-bold text-muted-foreground">
-                        {donor.rank}
-                      </span>
-                    )}
+                    <donor.icon className={`w-6 h-6 ${donor.color}`} />
                   </div>
                   <div>
                     <p className="font-semibold">{donor.name}</p>
@@ -68,21 +64,21 @@ const Leaderboard = () => {
           <CardContent className="pt-6 text-center">
             <Trophy className="w-12 h-12 mx-auto mb-3 text-yellow-500" />
             <h3 className="font-semibold mb-1">Your Rank</h3>
-            <p className="text-3xl font-bold">#4</p>
+            <p className="text-3xl font-bold">Coming Soon</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
             <TrendingUp className="w-12 h-12 mx-auto mb-3 text-success" />
             <h3 className="font-semibold mb-1">Points to Next Rank</h3>
-            <p className="text-3xl font-bold">200</p>
+            <p className="text-3xl font-bold">-</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
             <Award className="w-12 h-12 mx-auto mb-3 text-primary" />
             <h3 className="font-semibold mb-1">Total Points</h3>
-            <p className="text-3xl font-bold">850</p>
+            <p className="text-3xl font-bold">-</p>
           </CardContent>
         </Card>
       </div>

@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LogOut, Home, Plus, Package, TrendingUp, Users, Truck, Settings, QrCode, Trophy, User } from "lucide-react";
+import { LogOut, Home, Plus, Package, TrendingUp, Users, Truck, Settings, QrCode, Trophy, User, AlertCircle, BarChart3, ShieldCheck, Calendar, Award, FileText, Map, CheckCircle } from "lucide-react";
 import { logout } from "@/lib/api";
 
 interface DashboardLayoutProps {
@@ -32,20 +32,32 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
     ngo: [
       { path: "/dashboard/ngo", label: "Overview", icon: Home },
       { path: "/dashboard/ngo/browse", label: "Browse Surplus", icon: Package },
-      { path: "/dashboard/ngo/requests", label: "My Requests", icon: Plus },
+      { path: "/dashboard/ngo/request", label: "Request Items", icon: Plus },
+      { path: "/dashboard/ngo/requests", label: "My Requests", icon: Package },
+      { path: "/dashboard/ngo/urgent", label: "Urgent Needs", icon: AlertCircle },
       { path: "/dashboard/ngo/impact", label: "Impact", icon: TrendingUp },
+      { path: "/dashboard/ngo/leaderboard", label: "Leaderboard", icon: Trophy },
+      { path: "/dashboard/ngo/profile", label: "Profile", icon: User },
     ],
     logistics: [
       { path: "/dashboard/logistics", label: "Overview", icon: Home },
       { path: "/dashboard/logistics/tasks", label: "Available Tasks", icon: Package },
-      { path: "/dashboard/logistics/my-tasks", label: "My Tasks", icon: Truck },
+      { path: "/dashboard/logistics/active", label: "Active Deliveries", icon: Truck },
+      { path: "/dashboard/logistics/completed", label: "Completed", icon: CheckCircle },
+      { path: "/dashboard/logistics/map", label: "Route Map", icon: Map },
       { path: "/dashboard/logistics/performance", label: "Performance", icon: TrendingUp },
+      { path: "/dashboard/logistics/profile", label: "Profile", icon: User },
     ],
     admin: [
       { path: "/dashboard/admin", label: "Overview", icon: Home },
+      { path: "/dashboard/admin/analytics", label: "Analytics", icon: BarChart3 },
       { path: "/dashboard/admin/users", label: "Manage Users", icon: Users },
-      { path: "/dashboard/admin/analytics", label: "Analytics", icon: TrendingUp },
-      { path: "/dashboard/admin/settings", label: "Settings", icon: Settings },
+      { path: "/dashboard/admin/verification", label: "Verification", icon: ShieldCheck },
+      { path: "/dashboard/admin/forecasting", label: "AI Forecasting", icon: TrendingUp },
+      { path: "/dashboard/admin/seasonal", label: "Seasonal Insights", icon: Calendar },
+      { path: "/dashboard/admin/impact", label: "Impact Dashboard", icon: Award },
+      { path: "/dashboard/admin/logs", label: "System Logs", icon: FileText },
+      { path: "/dashboard/admin/profile", label: "Profile", icon: User },
     ],
   };
 

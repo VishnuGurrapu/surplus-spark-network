@@ -263,6 +263,29 @@ export const getDonorImpact = async (): Promise<ApiResponse<any>> => {
   }
 };
 
+export const trackDonationById = async (id: string): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/donor/tracking/${id}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during track donation:', error);
+    throw error;
+  }
+};
+
 // Profile API functions
 export interface UpdateProfileData {
   name?: string;
@@ -321,6 +344,173 @@ export const getCurrentProfile = async (): Promise<ApiResponse<User>> => {
     return response.json();
   } catch (error) {
     console.error('Network error during fetch profile:', error);
+    throw error;
+  }
+};
+
+// NGO interfaces and API functions
+export interface RequestData {
+  title: string;
+  description: string;
+  category: 'food' | 'clothing' | 'medical' | 'educational' | 'other';
+  quantity: number;
+  unit: string;
+  urgency: 'low' | 'medium' | 'high' | 'critical';
+  location: {
+    address: string;
+  };
+  neededBy?: string;
+}
+
+export interface NGORequest {
+  _id: string;
+  ngoId: string;
+  title: string;
+  description: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  urgency: string;
+  status: string;
+  location: {
+    address: string;
+  };
+  neededBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// NGO API functions
+export const getAvailableSurplus = async (filters?: { category?: string; search?: string }): Promise<ApiResponse<Surplus[]>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const params = new URLSearchParams();
+    if (filters?.category) params.append('category', filters.category);
+    if (filters?.search) params.append('search', filters.search);
+
+    const url = `${API_BASE_URL}/ngo/surplus${params.toString() ? `?${params.toString()}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch surplus:', error);
+    throw error;
+  }
+};
+
+export const createNGORequest = async (data: RequestData): Promise<ApiResponse<NGORequest>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/ngo/request`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      console.error('Create request error:', result);
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Network error during request creation:', error);
+    throw error;
+  }
+};
+
+export const getNGORequests = async (filters?: { status?: string }): Promise<ApiResponse<NGORequest[]>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+
+    const url = `${API_BASE_URL}/ngo/request${params.toString() ? `?${params.toString()}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch requests:', error);
+    throw error;
+  }
+};
+
+export const claimSurplus = async (id: string, deliveryLocation: { address: string }): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/ngo/claim/${id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify({ deliveryLocation }),
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during claim surplus:', error);
+    throw error;
+  }
+};
+
+export const getNGOImpact = async (): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/ngo/impact`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch NGO impact:', error);
     throw error;
   }
 };
