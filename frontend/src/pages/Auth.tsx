@@ -6,9 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-<<<<<<< Updated upstream
-import { motion } from "framer-motion";
-import { ArrowLeft, AlertCircle, Shield, CheckCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, AlertCircle, Shield, CheckCircle, MapPin, Loader2 } from "lucide-react";
 import { 
   register as registerUser, 
   login as loginUser, 
@@ -20,11 +19,6 @@ import {
   confirmAadhaarVerification,
   getCurrentProfile
 } from "@/lib/api";
-=======
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, AlertCircle, MapPin, Loader2 } from "lucide-react";
-import { register as registerUser, login as loginUser, setAuthToken, setUser, RegisterData, LoginData } from "@/lib/api";
->>>>>>> Stashed changes
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { loadGoogleMapsScript } from "@/lib/googleMaps";
@@ -208,7 +202,6 @@ const Auth = () => {
       const response = await registerUser(registerData);
       
       if (response.success && response.data) {
-<<<<<<< Updated upstream
         // For donors, show Aadhaar verification
         if (role === 'donor') {
           setTempToken(response.data.token);
@@ -225,22 +218,6 @@ const Auth = () => {
             navigate(config?.dashboard || "/");
           }, 1000);
         }
-=======
-        setAuthToken(response.data.token);
-        setUser(response.data.user);
-        setSuccess("Registration successful! Redirecting...");
-        
-        // Show success animation
-        setSuccessMessage({
-          title: "Account Created!",
-          description: `Welcome to ${config.title} - Let's make an impact together!`
-        });
-        setShowSuccessAnimation(true);
-        
-        setTimeout(() => {
-          navigate(config?.dashboard || "/");
-        }, 2000);
->>>>>>> Stashed changes
       } else {
         // Handle validation errors
         if (response.errors && response.errors.length > 0) {

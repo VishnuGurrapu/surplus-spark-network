@@ -48,8 +48,8 @@ const NGOProfile = () => {
 
       const response = await getCurrentProfile();
 
-      if (response.success && response.data?.user) {
-        const user = response.data.user;
+      if (response.success && response.data) {
+        const user = (response.data as any).user ?? response.data;
         setFormData({
           name: user.name || "",
           email: user.email || "",

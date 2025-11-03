@@ -59,7 +59,11 @@ const RequestSurplus = () => {
             await loadGoogleMapsScript();
 
             // Use Google's Geocoding API to convert coordinates to address
-            const geocoder = new google.maps.Geocoder();
+            const googleObj = (window as any).google;
+            if (!googleObj || !googleObj.maps) {
+              throw new Error("Google Maps SDK is not available on window");
+            }
+            const geocoder = new googleObj.maps.Geocoder();
             const latlng = { lat: latitude, lng: longitude };
 
             geocoder.geocode({ location: latlng }, (results, status) => {

@@ -207,17 +207,12 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
         </Button>
       </aside>
 
-<<<<<<< Updated upstream
-      {/* Main Content */}
-      <main className="flex-1 p-8 overflow-auto">
+      {/* Main Content - Scrollable */}
+      <main className="flex-1 h-screen overflow-y-auto p-8">
         {/* Advertisement Banner for donors, NGOs, and logistics */}
         {(userRole === 'donor' || userRole === 'ngo' || userRole === 'logistics') && (
           <AdvertisementBanner userRole={userRole} />
         )}
-=======
-      {/* Main Content - Scrollable */}
-      <main className="flex-1 h-screen overflow-y-auto p-8">
->>>>>>> Stashed changes
         {children}
       </main>
 

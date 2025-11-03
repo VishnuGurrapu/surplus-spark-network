@@ -171,11 +171,9 @@ const AvailableTasks = () => {
         });
 
         directionsRendererRef.current = directionsRenderer;
-
-        // Get directions
         const directionsService = new google.maps.DirectionsService();
 
-        const request: google.maps.DirectionsRequest = {
+        const request = {
           origin: pickupAddress,
           destination: deliveryAddress,
           travelMode: google.maps.TravelMode.DRIVING,
@@ -608,3 +606,7 @@ const AvailableTasks = () => {
 };
 
 export default AvailableTasks;
+function setRouteLoading(arg0: boolean) {
+  throw new Error("Function not implemented.");
+}
+
