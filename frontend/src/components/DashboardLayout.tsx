@@ -92,7 +92,6 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       { path: "/dashboard/logistics/tasks", label: "Available Tasks", icon: Package },
       { path: "/dashboard/logistics/active", label: "Active Deliveries", icon: Truck },
       { path: "/dashboard/logistics/completed", label: "Completed", icon: CheckCircle },
-      { path: "/dashboard/logistics/map", label: "Route Map", icon: Map },
       { path: "/dashboard/logistics/performance", label: "Performance", icon: TrendingUp },
       { path: "/dashboard/logistics/profile", label: "Profile", icon: User },
     ],

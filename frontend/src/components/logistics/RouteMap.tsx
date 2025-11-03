@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, Navigation, Loader2, Map, AlertCircle } from "lucide-react";
+import { MapPin, Navigation, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { loadGoogleMapsScript, isGoogleMapsLoaded, createMap, geocodeAddress, getDirections } from "@/lib/googleMaps";
+import { loadGoogleMapsScript, isGoogleMapsLoaded, createMap, getDirections } from "@/lib/googleMaps";
 
 const RouteMap = () => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<any>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const directionsRendererRef = useRef<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [directionsRenderer, setDirectionsRenderer] = useState<any>(null);
 
   const waypoints = [
     { name: "Green Grocery Store", address: "123 Main St", type: "pickup", time: "10:30 AM" },
@@ -20,63 +20,92 @@ const RouteMap = () => {
   ];
 
   useEffect(() => {
+    let isMounted = true;
+
+    const initializeMap = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        await loadGoogleMapsScript();
+
+        if (!isMounted || !mapRef.current) return;
+
+        // Create map instance
+        const mapInstance = createMap(mapRef.current, {
+          center: { lat: 19.0760, lng: 72.8777 },
+          zoom: 12,
+          mapId: import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID',
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+        });
+
+        mapInstanceRef.current = mapInstance;
+
+        // Create directions renderer
+        const renderer = new window.google.maps.DirectionsRenderer({
+          map: mapInstance,
+          suppressMarkers: false,
+          polylineOptions: {
+            strokeColor: '#0b66d0',
+            strokeWeight: 5,
+            strokeOpacity: 0.8,
+          },
+        });
+
+        directionsRendererRef.current = renderer;
+
+        // Calculate and display route
+        if (waypoints.length >= 2) {
+          await calculateRoute(waypoints, renderer);
+        }
+
+        if (isMounted) {
+          setLoading(false);
+        }
+      } catch (err: any) {
+        console.error('Map initialization error:', err);
+        if (isMounted) {
+          setError(err.message || 'Failed to load map. Please check your API key configuration.');
+          setLoading(false);
+        }
+      }
+    };
+
     initializeMap();
-  }, []);
 
-  const initializeMap = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      await loadGoogleMapsScript();
-
-      if (!mapRef.current) return;
-
-      const mapInstance = createMap(mapRef.current, {
-        center: { lat: 19.0760, lng: 72.8777 },
-        zoom: 12,
-        mapId: import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID',
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: true,
-      });
-
-      setMap(mapInstance);
-
-      const renderer = new window.google.maps.DirectionsRenderer({
-        map: mapInstance,
-        suppressMarkers: false,
-        polylineOptions: {
-          strokeColor: '#0b66d0',
-          strokeWeight: 5,
-          strokeOpacity: 0.8,
-        },
-      });
-      setDirectionsRenderer(renderer);
-
-      // Calculate and display route
-      if (waypoints.length >= 2) {
-        await calculateRoute(waypoints, renderer, mapInstance);
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      
+      // Properly clean up Google Maps instances
+      if (directionsRendererRef.current) {
+        try {
+          directionsRendererRef.current.setMap(null);
+          directionsRendererRef.current = null;
+        } catch (e) {
+          console.error('Error cleaning up directions renderer:', e);
+        }
       }
 
-      setLoading(false);
-    } catch (err: any) {
-      console.error('Map initialization error:', err);
-      setError(err.message || 'Failed to load map. Please check your API key configuration.');
-      setLoading(false);
-    }
-  };
+      if (mapInstanceRef.current) {
+        try {
+          // Clear map reference but don't try to remove DOM elements
+          mapInstanceRef.current = null;
+        } catch (e) {
+          console.error('Error cleaning up map:', e);
+        }
+      }
+    };
+  }, []); // Empty dependency array - only run once
 
-  const calculateRoute = async (points: typeof waypoints, renderer: any, mapInstance: any) => {
+  const calculateRoute = async (points: typeof waypoints, renderer: any) => {
     if (points.length < 2) return;
 
     try {
       const origin = points[0].address;
       const destination = points[points.length - 1].address;
-      const waypointsForRoute = points.slice(1, -1).map(wp => ({
-        location: wp.address,
-        stopover: true,
-      }));
 
       const result = await getDirections(origin, destination, 'DRIVING');
       
@@ -123,7 +152,12 @@ const RouteMap = () => {
                 <span className="ml-2">Loading map...</span>
               </div>
             )}
-            <div ref={mapRef} className="w-full h-full" />
+            {/* Keep the map div mounted to prevent removeChild errors */}
+            <div 
+              ref={mapRef} 
+              className="w-full h-full"
+              style={{ visibility: loading ? 'hidden' : 'visible' }}
+            />
           </div>
           {!loading && !error && (
             <div className="mt-4 flex justify-end">

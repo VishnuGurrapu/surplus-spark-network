@@ -3,11 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MapPin, Package, Clock, Loader2, AlertCircle, Truck, User, X, Route as RouteIcon } from "lucide-react";
+import { MapPin, Package, Clock, Loader2, AlertCircle, Truck, User, Route as RouteIcon, Navigation } from "lucide-react";
 import { getAvailableTasks, acceptTask, Task } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { loadGoogleMapsScript } from "@/lib/googleMaps";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { loadGoogleMapsScript, createMap } from "@/lib/googleMaps";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
 
 const AvailableTasks = () => {
   const { toast } = useToast();
@@ -15,33 +15,135 @@ const AvailableTasks = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accepting, setAccepting] = useState<string | null>(null);
-  const [showRouteModal, setShowRouteModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [routeLoading, setRouteLoading] = useState(false);
-  const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
-  const googleMapRef = useRef<google.maps.Map | null>(null);
-  const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
+  const mapInstanceRef = useRef<any>(null);
 
   useEffect(() => {
     fetchTasks();
   }, []);
 
-  const fetchTasks = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await getAvailableTasks();
-
-      if (response.success && response.data) {
-        setTasks(response.data);
-      } else {
-        setError(response.message || "Failed to fetch tasks");
+  useEffect(() => {
+    if (!dialogOpen || !selectedTask) {
+      // Clean up when dialog closes
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current = null;
       }
+      return;
+    }
+
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout;
+
+    const initMap = async () => {
+      try {
+        await loadGoogleMapsScript();
+
+        if (!isMounted || !mapRef.current) return;
+
+        // Wait for dialog animation to complete
+        timeoutId = setTimeout(() => {
+          if (!mapRef.current || !isMounted) return;
+
+          const map = createMap(mapRef.current, {
+            center: { lat: 19.0760, lng: 72.8777 },
+            zoom: 13,
+            mapTypeControl: true,
+            streetViewControl: true,
+            fullscreenControl: true,
+          });
+
+          mapInstanceRef.current = map;
+
+          // Add markers for pickup and delivery
+          if (selectedTask && window.google) {
+            // Pickup marker
+            new window.google.maps.Marker({
+              position: { lat: 19.0760, lng: 72.8777 },
+              map: map,
+              title: 'Pickup Location',
+              icon: {
+                url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+              },
+              label: {
+                text: 'P',
+                color: 'white',
+                fontWeight: 'bold'
+              }
+            });
+
+            // Delivery marker
+            new window.google.maps.Marker({
+              position: { lat: 19.0860, lng: 72.8977 },
+              map: map,
+              title: 'Delivery Location',
+              icon: {
+                url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+              },
+              label: {
+                text: 'D',
+                color: 'white',
+                fontWeight: 'bold'
+              }
+            });
+
+            // Add route
+            const directionsService = new window.google.maps.DirectionsService();
+            const directionsRenderer = new window.google.maps.DirectionsRenderer({
+              map: map,
+              suppressMarkers: false,
+              polylineOptions: {
+                strokeColor: '#4F46E5',
+                strokeWeight: 4,
+              },
+            });
+
+            directionsService.route(
+              {
+                origin: selectedTask.pickupLocation.address,
+                destination: selectedTask.deliveryLocation.address,
+                travelMode: window.google.maps.TravelMode.DRIVING,
+              },
+              (result, status) => {
+                if (status === window.google.maps.DirectionsStatus.OK && result) {
+                  directionsRenderer.setDirections(result);
+                }
+              }
+            );
+          }
+        }, 300); // Wait 300ms for dialog to render
+      } catch (err) {
+        console.error('Map initialization error:', err);
+      }
+    };
+
+    initMap();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current = null;
+        } catch (e) {
+          console.error('Error cleaning map:', e);
+        }
+      }
+    };
+  }, [dialogOpen, selectedTask]);
+
+  const fetchTasks = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await getAvailableTasks();
+      setTasks(response.data || []);
     } catch (err: any) {
       console.error('Fetch tasks error:', err);
-      setError(err.message || "An error occurred while fetching tasks");
+      setError(err.message || "Failed to fetch tasks");
     } finally {
       setLoading(false);
     }
@@ -50,7 +152,6 @@ const AvailableTasks = () => {
   const handleAcceptTask = async (taskId: string) => {
     try {
       setAccepting(taskId);
-
       const response = await acceptTask(taskId);
 
       if (response.success) {
@@ -58,7 +159,7 @@ const AvailableTasks = () => {
           title: "Success!",
           description: "Task accepted successfully",
         });
-        fetchTasks(); // Refresh the list
+        fetchTasks();
       } else {
         toast({
           title: "Error",
@@ -78,173 +179,27 @@ const AvailableTasks = () => {
     }
   };
 
-  const handleViewRoute = async (task: Task) => {
+  const handleViewDetails = (task: Task) => {
     setSelectedTask(task);
-    setShowRouteModal(true);
-    setRouteLoading(true);
-    setRouteInfo(null);
-
-    try {
-      const pickupAddress = task.pickupLocation.address;
-      const deliveryAddress = task.deliveryLocation.address;
-
-      // Validate addresses exist
-      if (!pickupAddress || !deliveryAddress) {
-        toast({
-          title: "Error",
-          description: "Pickup or delivery address is missing",
-          variant: "destructive",
-        });
-        setRouteLoading(false);
-        return;
-      }
-
-      // Check if addresses are identical
-      if (pickupAddress.trim().toLowerCase() === deliveryAddress.trim().toLowerCase()) {
-        setRouteInfo({
-          distance: "0 m (Same Location)",
-          duration: "0 mins",
-        });
-        setRouteLoading(false);
-        
-        // Still show the map with a single marker
-        await loadGoogleMapsScript();
-        
-        setTimeout(() => {
-          if (!mapRef.current) return;
-          
-          const geocoder = new google.maps.Geocoder();
-          geocoder.geocode({ address: pickupAddress }, (results, status) => {
-            if (status === 'OK' && results && results[0]) {
-              const location = results[0].geometry.location;
-              const map = new google.maps.Map(mapRef.current!, {
-                zoom: 15,
-                center: location,
-                mapTypeControl: false,
-                streetViewControl: false,
-              });
-              
-              new google.maps.Marker({
-                position: location,
-                map: map,
-                title: "Pickup & Delivery Location (Same)",
-                icon: {
-                  url: "http://maps.google.com/mapfiles/ms/icons/orange-dot.png"
-                }
-              });
-              
-              googleMapRef.current = map;
-            }
-          });
-        }, 300);
-        
-        return;
-      }
-
-      await loadGoogleMapsScript();
-
-      // Wait for modal to render
-      setTimeout(async () => {
-        if (!mapRef.current) {
-          setRouteLoading(false);
-          return;
-        }
-
-        // Initialize map
-        const map = new google.maps.Map(mapRef.current, {
-          zoom: 12,
-          center: { lat: 17.385044, lng: 78.486671 },
-          mapTypeControl: false,
-          streetViewControl: false,
-        });
-
-        googleMapRef.current = map;
-
-        // Initialize directions renderer
-        const directionsRenderer = new google.maps.DirectionsRenderer({
-          map: map,
-          suppressMarkers: false,
-          polylineOptions: {
-            strokeColor: "#4F46E5",
-            strokeWeight: 5,
-          },
-        });
-
-        directionsRendererRef.current = directionsRenderer;
-        const directionsService = new google.maps.DirectionsService();
-
-        const request = {
-          origin: pickupAddress,
-          destination: deliveryAddress,
-          travelMode: google.maps.TravelMode.DRIVING,
-        };
-
-        console.log('Calculating route from:', pickupAddress, 'to:', deliveryAddress);
-
-        directionsService.route(request, (result, status) => {
-          console.log('Directions API status:', status);
-          
-          if (status === google.maps.DirectionsStatus.OK && result) {
-            directionsRenderer.setDirections(result);
-
-            const route = result.routes[0];
-            const leg = route.legs[0];
-
-            setRouteInfo({
-              distance: leg.distance?.text || "N/A",
-              duration: leg.duration?.text || "N/A",
-            });
-
-            toast({
-              title: "Route Calculated",
-              description: `Distance: ${leg.distance?.text}, Duration: ${leg.duration?.text}`,
-            });
-          } else {
-            let errorMessage = "Could not calculate route. ";
-            
-            switch (status) {
-              case google.maps.DirectionsStatus.NOT_FOUND:
-                errorMessage += "One or both locations could not be found.";
-                break;
-              case google.maps.DirectionsStatus.ZERO_RESULTS:
-                errorMessage += "No route could be found between these locations.";
-                break;
-              case google.maps.DirectionsStatus.INVALID_REQUEST:
-                errorMessage += "Invalid route request.";
-                break;
-              default:
-                errorMessage += `Error: ${status}`;
-            }
-
-            toast({
-              title: "Error",
-              description: errorMessage,
-              variant: "destructive",
-            });
-          }
-          setRouteLoading(false);
-        });
-      }, 300);
-    } catch (error) {
-      console.error("Route error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load map: " + (error as Error).message,
-        variant: "destructive",
-      });
-      setRouteLoading(false);
-    }
+    setDialogOpen(true);
   };
 
-  const closeRouteModal = () => {
-    setShowRouteModal(false);
-    setSelectedTask(null);
-    setRouteInfo(null);
-    if (directionsRendererRef.current) {
-      directionsRendererRef.current.setMap(null);
-      directionsRendererRef.current = null;
+  const handleCloseDialog = () => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current = null;
     }
-    googleMapRef.current = null;
+
+    setTimeout(() => {
+      setDialogOpen(false);
+      setSelectedTask(null);
+    }, 50);
+  };
+
+  const openInGoogleMaps = (task: Task) => {
+    const origin = encodeURIComponent(task.pickupLocation.address);
+    const destination = encodeURIComponent(task.deliveryLocation.address);
+    const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+    window.open(url, '_blank');
   };
 
   const getDonorName = (donor: any) => {
@@ -322,7 +277,6 @@ const AvailableTasks = () => {
             <Card key={task._id} className="hover:shadow-lg transition-shadow border-2">
               <CardContent className="pt-6">
                 <div className="flex flex-col lg:flex-row justify-between gap-4">
-                  {/* Left Section - Task Details */}
                   <div className="flex-1 space-y-4">
                     <div className="flex items-start gap-3">
                       <div className="p-2 bg-primary/10 rounded-lg">
@@ -339,7 +293,6 @@ const AvailableTasks = () => {
                       </Badge>
                     </div>
 
-                    {/* Pickup & Delivery Info */}
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="p-3 bg-muted rounded-lg space-y-2">
                         <div className="flex items-center gap-2 text-sm font-medium">
@@ -376,7 +329,6 @@ const AvailableTasks = () => {
                       </div>
                     </div>
 
-                    {/* Additional Info */}
                     <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4" />
@@ -385,9 +337,8 @@ const AvailableTasks = () => {
                     </div>
                   </div>
 
-                  {/* Right Section - Actions */}
                   <div className="flex flex-col gap-2 lg:min-w-[140px] justify-center">
-                    <Button 
+                    <Button
                       className="w-full"
                       onClick={() => handleAcceptTask(task._id)}
                       disabled={accepting === task._id}
@@ -404,10 +355,10 @@ const AvailableTasks = () => {
                         </>
                       )}
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="w-full"
-                      onClick={() => handleViewRoute(task)}
+                      onClick={() => handleViewDetails(task)}
                     >
                       <RouteIcon className="w-4 h-4 mr-2" />
                       View Route
@@ -420,110 +371,61 @@ const AvailableTasks = () => {
         </div>
       )}
 
-      {/* Summary Stats */}
-      {!loading && tasks.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-primary/10 rounded-full">
-                  <Package className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{tasks.length}</div>
-                  <p className="text-xs text-muted-foreground">Available Tasks</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-warning/10 rounded-full">
-                  <Clock className="w-6 h-6 text-warning" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">
-                    {tasks.filter(t => t.status === 'pending').length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Pending</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-success/10 rounded-full">
-                  <Truck className="w-6 h-6 text-success" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">
-                    {tasks.filter(t => t.status === 'assigned').length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Ready for Pickup</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Route Modal */}
-      <Dialog open={showRouteModal} onOpenChange={(open) => !open && closeRouteModal()}>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <DialogTitle>Delivery Route</DialogTitle>
-                <DialogDescription>
-                  Route from pickup location to delivery destination
-                </DialogDescription>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={closeRouteModal}
-                className="h-8 w-8"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+            <DialogTitle>Task Route Details</DialogTitle>
+            <DialogDescription>
+              {selectedTask && `Pickup from ${getDonorName(selectedTask.donorId)} to ${getNGOName(selectedTask.ngoId)}`}
+            </DialogDescription>
           </DialogHeader>
-          
-          {selectedTask && (
+
+          {dialogOpen && selectedTask && (
             <div className="space-y-4">
-              {/* Warning for same addresses */}
-              {selectedTask.pickupLocation.address.trim().toLowerCase() === 
-               selectedTask.deliveryLocation.address.trim().toLowerCase() && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    <strong>⚠️ Same Location Issue:</strong> Both pickup and delivery locations are identical. This happens when the donor and NGO registered with the same address. 
-                    <br/><br/>
-                    <strong>To fix this:</strong>
-                    <ul className="list-disc ml-5 mt-2">
-                      <li>The donor should update their profile with their actual pickup address</li>
-                      <li>The NGO should update their profile with their actual delivery address</li>
-                      <li>Or contact support if this is a system error</li>
-                    </ul>
-                  </AlertDescription>
-                </Alert>
-              )}
-              
-              {/* Route Summary */}
+              {/* Map Container */}
+              <div className="relative">
+                <div 
+                  ref={mapRef} 
+                  className="w-full h-96 rounded-lg bg-muted border"
+                  style={{ minHeight: '384px' }}
+                />
+                <div className="absolute top-2 right-2 bg-background/90 backdrop-blur p-2 rounded-md shadow text-xs">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                    <span>Pickup Location</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    <span>Delivery Location</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Open in Google Maps Button */}
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => openInGoogleMaps(selectedTask)}
+                  className="gap-2"
+                >
+                  <Navigation className="w-4 h-4" />
+                  Open in Google Maps
+                </Button>
+              </div>
+
+              {/* Route Details */}
               <div className="grid md:grid-cols-2 gap-4">
                 <Card>
                   <CardContent className="pt-4">
                     <div className="flex items-start gap-3">
                       <MapPin className="w-5 h-5 text-success mt-1" />
                       <div className="flex-1">
-                        <p className="font-semibold text-sm">Pickup Location</p>
-                        <p className="text-sm text-muted-foreground">
-                          {getDonorName(selectedTask.donorId)}
+                        <p className="font-semibold text-sm mb-1">Pickup Location</p>
+                        <p className="text-sm font-medium">{getDonorName(selectedTask.donorId)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {selectedTask.pickupLocation.address}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {selectedTask.pickupLocation.address}
+                          Scheduled: {formatDate(selectedTask.scheduledPickup)}
                         </p>
                       </div>
                     </div>
@@ -535,52 +437,18 @@ const AvailableTasks = () => {
                     <div className="flex items-start gap-3">
                       <MapPin className="w-5 h-5 text-destructive mt-1" />
                       <div className="flex-1">
-                        <p className="font-semibold text-sm">Delivery Location</p>
-                        <p className="text-sm text-muted-foreground">
-                          {getNGOName(selectedTask.ngoId)}
+                        <p className="font-semibold text-sm mb-1">Delivery Location</p>
+                        <p className="text-sm font-medium">{getNGOName(selectedTask.ngoId)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {selectedTask.deliveryLocation.address}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {selectedTask.deliveryLocation.address}
+                          Scheduled: {formatDate(selectedTask.scheduledDelivery)}
                         </p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              </div>
-
-              {/* Route Info */}
-              {routeInfo && (
-                <div className="flex gap-4 justify-center">
-                  <Badge variant="secondary" className="text-base py-2 px-4">
-                    📏 Distance: {routeInfo.distance}
-                  </Badge>
-                  <Badge variant="secondary" className="text-base py-2 px-4">
-                    ⏱️ Duration: {routeInfo.duration}
-                  </Badge>
-                </div>
-              )}
-
-              {/* Map Container */}
-              <div className="relative">
-                <div
-                  ref={mapRef}
-                  className="w-full h-[400px] rounded-lg border border-border bg-muted/20"
-                  style={{ minHeight: '400px' }}
-                >
-                  {routeLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-lg z-10">
-                      <div className="text-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">Calculating route...</p>
-                      </div>
-                    </div>
-                  )}
-                  {!routeLoading && !googleMapRef.current && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <p className="text-sm text-muted-foreground">Map will appear here</p>
-                    </div>
-                  )}
-                </div>
               </div>
 
               {/* Item Details */}
@@ -599,6 +467,12 @@ const AvailableTasks = () => {
               </Card>
             </div>
           )}
+
+          <DialogClose asChild>
+            <Button variant="outline" onClick={handleCloseDialog} className="w-full">
+              Close
+            </Button>
+          </DialogClose>
         </DialogContent>
       </Dialog>
     </div>
@@ -606,7 +480,4 @@ const AvailableTasks = () => {
 };
 
 export default AvailableTasks;
-function setRouteLoading(arg0: boolean) {
-  throw new Error("Function not implemented.");
-}
 
