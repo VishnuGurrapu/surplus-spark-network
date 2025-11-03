@@ -1,121 +1,290 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Package, Clock, ArrowRight } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { MapPin, Package, Clock, Loader2, AlertCircle, Truck, User } from "lucide-react";
+import { getAvailableTasks, acceptTask, Task } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 const AvailableTasks = () => {
-  const tasks = [
-    {
-      id: "T001",
-      type: "Pickup & Delivery",
-      from: "Green Grocery Store",
-      fromLocation: "123 Main St",
-      to: "Hope Foundation",
-      toLocation: "456 Community Ave",
-      distance: "4.2 km",
-      items: "Fresh Vegetables - 15 kg",
-      priority: "High",
-      payment: "$25"
-    },
-    {
-      id: "T002",
-      type: "Pickup & Delivery",
-      from: "Fashion Outlet",
-      fromLocation: "789 Fashion St",
-      to: "Care Center",
-      toLocation: "321 Support Rd",
-      distance: "6.8 km",
-      items: "Winter Jackets - 25 pieces",
-      priority: "Medium",
-      payment: "$35"
-    },
-    {
-      id: "T003",
-      type: "Pickup & Delivery",
-      from: "City Library",
-      fromLocation: "101 Book Ave",
-      to: "Learning Hub",
-      toLocation: "202 Education St",
-      distance: "3.5 km",
-      items: "Educational Books - 100 items",
-      priority: "Low",
-      payment: "$20"
-    }
-  ];
+  const { toast } = useToast();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [accepting, setAccepting] = useState<string | null>(null);
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "High": return "bg-destructive";
-      case "Medium": return "bg-warning";
-      default: return "bg-muted";
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await getAvailableTasks();
+
+      if (response.success && response.data) {
+        setTasks(response.data);
+      } else {
+        setError(response.message || "Failed to fetch tasks");
+      }
+    } catch (err: any) {
+      console.error('Fetch tasks error:', err);
+      setError(err.message || "An error occurred while fetching tasks");
+    } finally {
+      setLoading(false);
     }
   };
+
+  const handleAcceptTask = async (taskId: string) => {
+    try {
+      setAccepting(taskId);
+
+      const response = await acceptTask(taskId);
+
+      if (response.success) {
+        toast({
+          title: "Success!",
+          description: "Task accepted successfully",
+        });
+        fetchTasks(); // Refresh the list
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to accept task",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      console.error('Accept task error:', err);
+      toast({
+        title: "Error",
+        description: err.message || "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setAccepting(null);
+    }
+  };
+
+  const getDonorName = (donor: any) => {
+    if (donor && typeof donor === 'object' && 'name' in donor) {
+      return donor.name;
+    }
+    return 'Unknown';
+  };
+
+  const getNGOName = (ngo: any) => {
+    if (ngo && typeof ngo === 'object' && 'name' in ngo) {
+      return ngo.name;
+    }
+    return 'Unknown';
+  };
+
+  const getSurplusTitle = (surplus: any) => {
+    if (surplus && typeof surplus === 'object' && 'title' in surplus) {
+      return surplus.title;
+    }
+    return 'Surplus Item';
+  };
+
+  const getSurplusDetails = (surplus: any) => {
+    if (surplus && typeof surplus === 'object') {
+      return `${surplus.quantity || 0} ${surplus.unit || 'units'}`;
+    }
+    return '';
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "Not scheduled";
+    return new Date(dateString).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading available tasks...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold mb-2">Available Tasks</h2>
-        <p className="text-muted-foreground">Accept delivery tasks and start earning</p>
+        <p className="text-muted-foreground">Browse and accept delivery tasks</p>
       </div>
 
-      <div className="grid gap-6">
-        {tasks.map((task) => (
-          <Card key={task.id} className="hover:shadow-lg transition-shadow">
-            <CardContent className="pt-6">
-              <div className="flex flex-col lg:flex-row justify-between gap-6">
-                <div className="flex-1 space-y-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-xl font-bold mb-1">{task.type}</h3>
-                      <p className="text-sm text-muted-foreground">Task ID: {task.id}</p>
-                    </div>
-                    <Badge className={getPriorityColor(task.priority)}>
-                      {task.priority}
-                    </Badge>
-                  </div>
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-                  <div className="space-y-3">
+      {tasks.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <Truck className="w-16 h-16 mx-auto mb-4 opacity-20" />
+            <p>No tasks available at the moment</p>
+            <p className="text-sm mt-2">Check back later for new delivery opportunities</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-6">
+          {tasks.map((task) => (
+            <Card key={task._id} className="hover:shadow-lg transition-shadow border-2">
+              <CardContent className="pt-6">
+                <div className="flex flex-col lg:flex-row justify-between gap-4">
+                  {/* Left Section - Task Details */}
+                  <div className="flex-1 space-y-4">
                     <div className="flex items-start gap-3">
-                      <MapPin className="w-5 h-5 text-primary mt-1" />
-                      <div>
-                        <p className="font-medium">{task.from}</p>
-                        <p className="text-sm text-muted-foreground">{task.fromLocation}</p>
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <Package className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg">{getSurplusTitle(task.surplusId)}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {getSurplusDetails(task.surplusId)}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="capitalize">
+                        {task.status}
+                      </Badge>
+                    </div>
+
+                    {/* Pickup & Delivery Info */}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="p-3 bg-muted rounded-lg space-y-2">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          <MapPin className="w-4 h-4 text-success" />
+                          Pickup
+                        </div>
+                        <div className="text-sm">
+                          <p className="font-medium">{getDonorName(task.donorId)}</p>
+                          <p className="text-muted-foreground">
+                            {task.pickupLocation.address}
+                          </p>
+                          <div className="flex items-center gap-1 mt-1 text-muted-foreground">
+                            <Clock className="w-3 h-3" />
+                            <span className="text-xs">{formatDate(task.scheduledPickup)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-muted rounded-lg space-y-2">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                          <MapPin className="w-4 h-4 text-destructive" />
+                          Delivery
+                        </div>
+                        <div className="text-sm">
+                          <p className="font-medium">{getNGOName(task.ngoId)}</p>
+                          <p className="text-muted-foreground">
+                            {task.deliveryLocation.address}
+                          </p>
+                          <div className="flex items-center gap-1 mt-1 text-muted-foreground">
+                            <Clock className="w-3 h-3" />
+                            <span className="text-xs">{formatDate(task.scheduledDelivery)}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-3 ml-7">
-                      <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">{task.distance}</span>
-                    </div>
 
-                    <div className="flex items-start gap-3">
-                      <MapPin className="w-5 h-5 text-success mt-1" />
-                      <div>
-                        <p className="font-medium">{task.to}</p>
-                        <p className="text-sm text-muted-foreground">{task.toLocation}</p>
+                    {/* Additional Info */}
+                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        <span>Created {new Date(task.createdAt).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2">
-                    <Package className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm">{task.items}</span>
+                  {/* Right Section - Actions */}
+                  <div className="flex flex-col gap-2 lg:min-w-[140px] justify-center">
+                    <Button 
+                      className="w-full"
+                      onClick={() => handleAcceptTask(task._id)}
+                      disabled={accepting === task._id}
+                    >
+                      {accepting === task._id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Accepting...
+                        </>
+                      ) : (
+                        <>
+                          <Truck className="w-4 h-4 mr-2" />
+                          Accept Task
+                        </>
+                      )}
+                    </Button>
+                    <Button variant="outline" className="w-full">
+                      View Route
+                    </Button>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-                <div className="flex flex-col gap-3 lg:min-w-[140px] justify-between">
-                  <div className="text-center p-4 bg-success/10 rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Earning</p>
-                    <p className="text-2xl font-bold text-success">{task.payment}</p>
-                  </div>
-                  <Button className="w-full">Accept Task</Button>
-                  <Button variant="outline" className="w-full">View Route</Button>
+      {/* Summary Stats */}
+      {!loading && tasks.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-primary/10 rounded-full">
+                  <Package className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">{tasks.length}</div>
+                  <p className="text-xs text-muted-foreground">Available Tasks</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-warning/10 rounded-full">
+                  <Clock className="w-6 h-6 text-warning" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">
+                    {tasks.filter(t => t.status === 'pending').length}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Pending</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-success/10 rounded-full">
+                  <Truck className="w-6 h-6 text-success" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">
+                    {tasks.filter(t => t.status === 'assigned').length}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Ready for Pickup</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

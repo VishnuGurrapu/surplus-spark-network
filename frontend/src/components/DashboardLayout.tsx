@@ -1,10 +1,16 @@
-import React, { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LogOut, Home, Plus, Package, TrendingUp, Users, Truck, Settings, QrCode, Trophy, User, AlertCircle, BarChart3, ShieldCheck, Calendar, Award, FileText, Map, CheckCircle } from "lucide-react";
-import { logout } from "@/lib/api";
-import ThemeToggle from "@/components/ui/ThemeToggle";
+import { LogOut, Home, Plus, Package, TrendingUp, Users, Truck, Settings, QrCode, Trophy, User, AlertCircle, BarChart3, ShieldCheck, Calendar, Award, FileText, Map, CheckCircle, Bell } from "lucide-react";
+import { logout, getNotifications, markNotificationAsRead } from "@/lib/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -14,6 +20,42 @@ interface DashboardLayoutProps {
 const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await getNotifications();
+      if (response.success && response.data) {
+        setNotifications(response.data.notifications);
+        setUnreadCount(response.data.unreadCount);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const handleNotificationClick = async (notification: any) => {
+    if (!notification.isRead) {
+      await markNotificationAsRead(notification._id);
+      fetchNotifications();
+    }
+
+    // Navigate based on notification type
+    if (notification.data?.surplusId) {
+      if (userRole === 'donor') {
+        navigate('/dashboard/donor/donations');
+      } else if (userRole === 'ngo') {
+        navigate('/dashboard/ngo/browse');
+      }
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -35,6 +77,7 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       { path: "/dashboard/ngo/browse", label: "Browse Surplus", icon: Package },
       { path: "/dashboard/ngo/request", label: "Request Items", icon: Plus },
       { path: "/dashboard/ngo/requests", label: "My Requests", icon: Package },
+      { path: "/dashboard/ngo/track-requests", label: "Track Requests", icon: QrCode },
       { path: "/dashboard/ngo/urgent", label: "Urgent Needs", icon: AlertCircle },
       { path: "/dashboard/ngo/impact", label: "Impact", icon: TrendingUp },
       { path: "/dashboard/ngo/leaderboard", label: "Leaderboard", icon: Trophy },
@@ -75,23 +118,57 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
       <aside className="w-64 bg-card border-r border-border p-6 flex flex-col">
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-primary">Surplus Spark</h1>
-              <p className="text-sm text-muted-foreground capitalize">{userRole} Dashboard</p>
-            </div>
-            <div className="ml-4">
-              {/* Theme toggle placed here so it's available on all dashboard pages */}
-              {/* Import kept local to avoid affecting server-side code */}
-              {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
-              {/* @ts-ignore */}
-              <React.Suspense>
-                {/* Lazy inline import to avoid bundle surprises; component is lightweight */}
-                <ThemeToggle />
-              </React.Suspense>
-            </div>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-primary">ShareGood</h1>
+            <p className="text-sm text-muted-foreground capitalize">{userRole} Dashboard</p>
           </div>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                    {unreadCount}
+                  </Badge>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <div className="p-2 font-semibold border-b">
+                Notifications ({unreadCount} unread)
+              </div>
+              {notifications.length > 0 ? (
+                <div className="max-h-96 overflow-y-auto">
+                  {notifications.slice(0, 5).map((notification) => (
+                    <DropdownMenuItem
+                      key={notification._id}
+                      className={`p-3 cursor-pointer ${!notification.isRead ? 'bg-primary/5' : ''}`}
+                      onClick={() => handleNotificationClick(notification)}
+                    >
+                      <div className="flex flex-col gap-1 w-full">
+                        <div className="flex items-start justify-between">
+                          <p className="font-medium text-sm">{notification.title}</p>
+                          {!notification.isRead && (
+                            <div className="w-2 h-2 bg-primary rounded-full mt-1" />
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{notification.message}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(notification.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  No notifications
+                </div>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <nav className="flex-1 space-y-2">

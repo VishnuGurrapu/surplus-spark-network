@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, Navigation, Maximize2 } from "lucide-react";
+import { MapPin, Navigation, Maximize2, Map } from "lucide-react";
 
 const RouteMap = () => {
   const waypoints = [
@@ -14,33 +14,28 @@ const RouteMap = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold mb-2">Route Map</h2>
-        <p className="text-muted-foreground">Optimized routes for your deliveries</p>
+        <p className="text-muted-foreground">View your delivery routes and navigation</p>
       </div>
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Today's Route</CardTitle>
-              <CardDescription>4 stops • Estimated time: 2.5 hours</CardDescription>
-            </div>
-            <Button variant="outline" size="sm">
-              <Maximize2 className="w-4 h-4 mr-2" />
-              Full Screen
-            </Button>
-          </div>
+          <CardTitle>Delivery Route</CardTitle>
+          <CardDescription>Your optimized delivery path for today</CardDescription>
         </CardHeader>
         <CardContent>
           {/* Map Placeholder */}
           <div className="w-full h-96 bg-muted rounded-lg flex items-center justify-center relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5" />
             <div className="text-center z-10">
-              <Navigation className="w-16 h-16 mx-auto mb-4 text-primary" />
-              <p className="text-lg font-medium mb-2">Interactive Map</p>
-              <p className="text-sm text-muted-foreground">
-                Google Maps API integration placeholder
+              <Map className="w-16 h-16 mx-auto mb-4 text-primary opacity-50" />
+              <p className="text-lg font-medium mb-2">Interactive Map Coming Soon</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                Google Maps API integration will be available soon
               </p>
-              <Button className="mt-4">Open in Maps</Button>
+              <Button variant="outline" disabled>
+                <Navigation className="w-4 h-4 mr-2" />
+                Open in Maps
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -49,6 +44,7 @@ const RouteMap = () => {
       <Card>
         <CardHeader>
           <CardTitle>Route Waypoints</CardTitle>
+          <CardDescription>Stops on your delivery route</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">

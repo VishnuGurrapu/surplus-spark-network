@@ -8,7 +8,10 @@ import {
   updateSurplus,
   getDonorImpact,
   trackDonation,
+  acceptSurplusRequest,
+  rejectSurplusRequest,
 } from '../controllers/donorController';
+import { getDonorLeaderboard } from '../controllers/leaderboardController';
 
 const router = express.Router();
 
@@ -30,5 +33,8 @@ router.get('/surplus/:id', getSurplusById);
 router.patch('/surplus/:id', updateSurplus);
 router.get('/impact', getDonorImpact);
 router.get('/tracking/:id', trackDonation);
+router.get('/leaderboard', getDonorLeaderboard);
+router.post('/surplus/:id/accept', acceptSurplusRequest);
+router.post('/surplus/:id/reject', rejectSurplusRequest);
 
 export default router;

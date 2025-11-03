@@ -3,6 +3,8 @@ import { AuthRequest } from '../middleware/auth';
 import Surplus from '../models/Surplus';
 import Request from '../models/Request';
 import Task from '../models/Task';
+import Notification from '../models/Notification';
+import User from '../models/User';
 import { validationResult } from 'express-validator';
 
 export const getAvailableSurplus = async (req: AuthRequest, res: Response) => {
@@ -87,7 +89,7 @@ export const updateRequest = async (req: AuthRequest, res: Response) => {
 
 export const claimSurplus = async (req: AuthRequest, res: Response) => {
   try {
-    const surplus = await Surplus.findById(req.params.id);
+    const surplus = await Surplus.findById(req.params.id).populate('donorId', 'name');
 
     if (!surplus) {
       return res.status(404).json({ success: false, message: 'Surplus not found' });
@@ -96,6 +98,8 @@ export const claimSurplus = async (req: AuthRequest, res: Response) => {
     if (surplus.status !== 'available') {
       return res.status(400).json({ success: false, message: 'Surplus already claimed' });
     }
+
+    const ngo = await User.findById(req.user?.userId);
 
     surplus.status = 'claimed';
     surplus.claimedBy = req.user?.userId as any;
@@ -112,10 +116,114 @@ export const claimSurplus = async (req: AuthRequest, res: Response) => {
     });
     await task.save();
 
+    // Create notification for donor
+    await new Notification({
+      userId: surplus.donorId,
+      type: 'surplus_claimed',
+      title: 'Surplus Item Claimed',
+      message: `${ngo?.name || 'An NGO'} has requested your surplus item: ${surplus.title}`,
+      data: {
+        surplusId: surplus._id,
+        ngoId: req.user?.userId,
+        ngoName: ngo?.name,
+        taskId: task._id,
+      },
+    }).save();
+
     res.json({
       success: true,
-      message: 'Surplus claimed successfully',
+      message: 'Surplus claimed successfully. Donor has been notified.',
       data: { surplus, task },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getClaimedSurplus = async (req: AuthRequest, res: Response) => {
+  try {
+    // Get all surplus items claimed by this NGO
+    const claimedSurplus = await Surplus.find({
+      claimedBy: req.user?.userId,
+    })
+      .populate('donorId', 'name location')
+      .populate('logisticsPartnerId', 'name vehicleType')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, data: claimedSurplus });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const confirmSurplusReceived = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const surplus = await Surplus.findOne({
+      _id: id,
+      claimedBy: req.user?.userId,
+    });
+
+    if (!surplus) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Surplus not found or not claimed by you' 
+      });
+    }
+
+    // Check if item is in-transit or already delivered
+    if (surplus.status !== 'in-transit' && surplus.status !== 'delivered') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Item must be in-transit or delivered to confirm receipt' 
+      });
+    }
+
+    // Update status to delivered if it's in-transit
+    if (surplus.status === 'in-transit') {
+      surplus.status = 'delivered';
+      await surplus.save();
+
+      // Update associated task
+      await Task.findOneAndUpdate(
+        { surplusId: surplus._id },
+        { status: 'delivered', actualDelivery: new Date() }
+      );
+    }
+
+    // Create notification for donor
+    const ngo = await User.findById(req.user?.userId);
+    
+    await new Notification({
+      userId: surplus.donorId,
+      type: 'delivery_update',
+      title: 'Delivery Confirmed',
+      message: `${ngo?.name || 'NGO'} has confirmed receipt of your donation: ${surplus.title}. Thank you for your contribution!`,
+      data: {
+        surplusId: surplus._id,
+        ngoId: req.user?.userId,
+      },
+    }).save();
+
+    // Also notify logistics partner if assigned
+    if (surplus.logisticsPartnerId) {
+      await new Notification({
+        userId: surplus.logisticsPartnerId,
+        type: 'delivery_update',
+        title: 'Delivery Confirmed by Recipient',
+        message: `${ngo?.name || 'NGO'} has confirmed receipt of ${surplus.title}`,
+        data: {
+          surplusId: surplus._id,
+          ngoId: req.user?.userId,
+        },
+      }).save();
+    }
+
+    res.json({
+      success: true,
+      message: 'Receipt confirmed successfully',
+      data: surplus,
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -149,6 +257,49 @@ export const getNGOImpact = async (req: AuthRequest, res: Response) => {
         totalQuantity: totalQuantity[0]?.total || 0,
         estimatedPeopleServed: (totalQuantity[0]?.total || 0) * 3, // Mock calculation
       },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getUrgentNeeds = async (req: AuthRequest, res: Response) => {
+  try {
+    // Get requests with high or critical urgency that are still open
+    const urgentRequests = await Request.find({
+      urgency: { $in: ['high', 'critical'] },
+      status: 'open',
+    })
+      .populate('ngoId', 'name location')
+      .sort({ urgency: -1, createdAt: -1 })
+      .limit(10);
+
+    res.json({ success: true, data: urgentRequests });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const markRequestReceived = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const request = await Request.findOne({
+      _id: id,
+      ngoId: req.user?.userId,
+    });
+
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Request not found' });
+    }
+
+    request.status = 'fulfilled';
+    await request.save();
+
+    res.json({
+      success: true,
+      message: 'Request marked as received',
+      data: request,
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

@@ -3,6 +3,8 @@ import { validationResult } from 'express-validator';
 import User from '../models/User';
 import { generateToken } from '../utils/jwt';
 import { AuthRequest } from '../middleware/auth';
+import { logActivity } from '../utils/activityLogger';
+import mongoose from 'mongoose';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -52,6 +54,17 @@ export const register = async (req: Request, res: Response) => {
     // Create new user
     const user = new User(userData);
     await user.save();
+
+    // Log registration activity
+    await logActivity({
+      userId: user._id as mongoose.Types.ObjectId,
+      action: 'register',
+      resourceType: 'user',
+      resourceId: user._id as mongoose.Types.ObjectId,
+      description: `New ${role} account created: ${name}`,
+      metadata: { email, role },
+      ipAddress: req.ip,
+    });
 
     // Generate token
     const token = generateToken({
@@ -122,6 +135,16 @@ export const login = async (req: Request, res: Response) => {
       userId: String(user._id),
       email: user.email,
       role: user.role,
+    });
+
+    // Log login activity
+    await logActivity({
+      userId: user._id as mongoose.Types.ObjectId,
+      action: 'login',
+      resourceType: 'auth',
+      description: `User logged in: ${user.name}`,
+      metadata: { email: user.email, role: user.role },
+      ipAddress: req.ip,
     });
 
     res.status(200).json({

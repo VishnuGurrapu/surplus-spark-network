@@ -39,13 +39,12 @@ const DonorHome = () => {
         const donations = donationsResponse.data || [];
 
         setStats({
-          totalDonations: impact.totalDonations || 0,
-          peopleHelped: (impact.totalQuantity || 0) * 3, // Mock calculation
-          pendingPickups: donations.filter((d: any) => d.status === 'available').length,
-          impactScore: impact.deliveredDonations * 10 + impact.totalQuantity,
+          totalDonations: impact.totalDonations || 0, // Only in-transit + delivered
+          peopleHelped: (impact.totalQuantity || 0) * 3,
+          pendingPickups: donations.filter((d: any) => d.status === 'available' || d.status === 'claimed').length,
+          impactScore: (impact.deliveredDonations || 0) * 10 + (impact.totalQuantity || 0),
         });
 
-        // Get last 3 donations
         setRecentDonations(donations.slice(0, 3));
       } else {
         setError("Failed to fetch dashboard data");

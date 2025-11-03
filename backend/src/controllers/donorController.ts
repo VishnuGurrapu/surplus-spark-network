@@ -3,6 +3,8 @@ import { AuthRequest } from '../middleware/auth';
 import Surplus from '../models/Surplus';
 import Task from '../models/Task';
 import { validationResult } from 'express-validator';
+import Notification from '../models/Notification';
+import User from '../models/User';
 
 export const createSurplus = async (req: AuthRequest, res: Response) => {
   try {
@@ -87,28 +89,38 @@ export const updateSurplus = async (req: AuthRequest, res: Response) => {
 
 export const getDonorImpact = async (req: AuthRequest, res: Response) => {
   try {
-    const totalDonations = await Surplus.countDocuments({ donorId: req.user?.userId });
+    // Only count donations that have been picked up by logistics (in-transit or delivered)
+    const totalDonations = await Surplus.countDocuments({ 
+      donorId: req.user?.userId,
+      status: { $in: ['in-transit', 'delivered'] } 
+    });
+    
     const deliveredDonations = await Surplus.countDocuments({
       donorId: req.user?.userId,
       status: 'delivered',
     });
 
     const totalQuantity = await Surplus.aggregate([
-      { $match: { donorId: req.user?.userId, status: 'delivered' } },
+      { 
+        $match: { 
+          donorId: req.user?.userId, 
+          status: { $in: ['in-transit', 'delivered'] } 
+        } 
+      },
       { $group: { _id: null, total: { $sum: '$quantity' } } },
     ]);
 
-    // Calculate badges
+    // Calculate badges based on picked-up donations only
     const badges = [];
-    if (deliveredDonations >= 10) badges.push({ name: 'Bronze Donor', icon: '🥉' });
-    if (deliveredDonations >= 50) badges.push({ name: 'Silver Donor', icon: '🥈' });
-    if (deliveredDonations >= 100) badges.push({ name: 'Gold Donor', icon: '🥇' });
+    if (totalDonations >= 10) badges.push({ name: 'Bronze Donor', icon: '🥉' });
+    if (totalDonations >= 50) badges.push({ name: 'Silver Donor', icon: '🥈' });
+    if (totalDonations >= 100) badges.push({ name: 'Gold Donor', icon: '🥇' });
 
     res.json({
       success: true,
       data: {
-        totalDonations,
-        deliveredDonations,
+        totalDonations, // Only picked-up donations (in-transit + delivered)
+        deliveredDonations, // Only delivered donations
         totalQuantity: totalQuantity[0]?.total || 0,
         badges,
       },
@@ -145,6 +157,103 @@ export const trackDonation = async (req: AuthRequest, res: Response) => {
           delivered: task?.actualDelivery,
         },
       },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const acceptSurplusRequest = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const surplus = await Surplus.findOne({
+      _id: id,
+      donorId: req.user?.userId,
+      status: 'claimed',
+    }).populate('claimedBy', 'name');
+
+    if (!surplus) {
+      return res.status(404).json({ success: false, message: 'Surplus request not found' });
+    }
+
+    // Change status to 'accepted' - a new intermediate status
+    // This prevents the buttons from showing again after reload
+    surplus.status = 'accepted' as any; // TypeScript workaround
+    await surplus.save();
+
+    // Update task status to 'assigned' (ready for logistics to accept)
+    const task = await Task.findOneAndUpdate(
+      { surplusId: surplus._id },
+      { status: 'assigned' },
+      { new: true }
+    );
+
+    // Create notification for NGO
+    const donor = await User.findById(req.user?.userId);
+    await new Notification({
+      userId: surplus.claimedBy,
+      type: 'request_received',
+      title: 'Request Accepted',
+      message: `${donor?.name || 'Donor'} has accepted your request for: ${surplus.title}. Waiting for logistics to pick it up.`,
+      data: {
+        surplusId: surplus._id,
+        donorId: req.user?.userId,
+        taskId: task?._id,
+      },
+    }).save();
+
+    res.json({
+      success: true,
+      message: 'Request accepted. Task is now available for logistics partners to pick up.',
+      data: { surplus, task },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const rejectSurplusRequest = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const surplus = await Surplus.findOne({
+      _id: id,
+      donorId: req.user?.userId,
+      status: 'claimed',
+    }).populate('claimedBy', 'name');
+
+    if (!surplus) {
+      return res.status(404).json({ success: false, message: 'Surplus request not found' });
+    }
+
+    const ngoId = surplus.claimedBy;
+
+    // Reset surplus to available
+    surplus.status = 'available';
+    surplus.claimedBy = undefined;
+    await surplus.save();
+
+    // Delete associated task
+    await Task.findOneAndDelete({ surplusId: surplus._id });
+
+    // Create notification for NGO
+    const donor = await User.findById(req.user?.userId);
+    await new Notification({
+      userId: ngoId,
+      type: 'request_received',
+      title: 'Request Declined',
+      message: `${donor?.name || 'Donor'} has declined your request for: ${surplus.title}`,
+      data: {
+        surplusId: surplus._id,
+        donorId: req.user?.userId,
+      },
+    }).save();
+
+    res.json({
+      success: true,
+      message: 'Request rejected. Item is now available for other NGOs.',
+      data: surplus,
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
