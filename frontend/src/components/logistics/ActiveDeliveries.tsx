@@ -1,124 +1,201 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, MapPin, Package, Truck } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { MapPin, Package, Loader2, AlertCircle, CheckCircle, CheckCircle2, Truck } from "lucide-react";
+import { getMyTasks, updateTaskStatus, Task } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 const ActiveDeliveries = () => {
-  const deliveries = [
-    {
-      id: "D105",
-      item: "Fresh Vegetables",
-      status: "In Transit",
-      from: "Green Grocery",
-      to: "Hope Foundation",
-      progress: 65
-    },
-    {
-      id: "D106",
-      item: "Winter Clothes",
-      status: "Picked Up",
-      from: "Fashion Outlet",
-      to: "Care Center",
-      progress: 30
-    },
-    {
-      id: "D107",
-      item: "Books",
-      status: "En Route to Pickup",
-      from: "City Library",
-      to: "Learning Hub",
-      progress: 15
-    }
-  ];
+  const { toast } = useToast();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [updating, setUpdating] = useState<string | null>(null);
 
-  const timeline = [
-    { label: "Assigned", icon: Package, completed: true },
-    { label: "En Route", icon: Truck, completed: true },
-    { label: "Picked Up", icon: CheckCircle2, completed: true },
-    { label: "In Transit", icon: Truck, completed: false },
-    { label: "Delivered", icon: MapPin, completed: false }
-  ];
+  useEffect(() => {
+    fetchActiveTasks();
+  }, []);
+
+  const fetchActiveTasks = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await getMyTasks({ status: 'assigned' });
+
+      if (response.success && response.data) {
+        setTasks(response.data);
+      } else {
+        setError(response.message || "Failed to fetch active deliveries");
+      }
+    } catch (err: any) {
+      console.error('Fetch tasks error:', err);
+      setError(err.message || "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMarkPickedUp = async (taskId: string) => {
+    try {
+      setUpdating(taskId);
+
+      const response = await updateTaskStatus(taskId, 'picked-up');
+
+      if (response.success) {
+        toast({
+          title: "Success!",
+          description: "Item marked as picked up",
+        });
+        fetchActiveTasks();
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to update status",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleMarkDelivered = async (taskId: string) => {
+    try {
+      setUpdating(taskId);
+
+      const response = await updateTaskStatus(taskId, 'delivered');
+
+      if (response.success) {
+        toast({
+          title: "Success!",
+          description: "Delivery completed successfully",
+        });
+        fetchActiveTasks();
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to update status",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading active deliveries...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold mb-2">Active Deliveries</h2>
-        <p className="text-muted-foreground">Monitor your ongoing deliveries in real-time</p>
+        <p className="text-muted-foreground">Manage your ongoing delivery tasks</p>
       </div>
 
-      {deliveries.map((delivery) => (
-        <Card key={delivery.id} className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Delivery {delivery.id}</CardTitle>
-              <span className="text-sm font-medium text-primary">{delivery.status}</span>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Item</p>
-                <p className="font-medium">{delivery.item}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Route</p>
-                <p className="font-medium">{delivery.from} → {delivery.to}</p>
-              </div>
-            </div>
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>Progress</span>
-                <span className="font-medium">{delivery.progress}%</span>
-              </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-primary to-secondary transition-all"
-                  style={{ width: `${delivery.progress}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button size="sm" className="flex-1">Update Status</Button>
-              <Button size="sm" variant="outline" className="flex-1">View Map</Button>
-              <Button size="sm" variant="outline">Contact</Button>
-            </div>
+      {tasks.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <Package className="w-16 h-16 mx-auto mb-4 opacity-20" />
+            <p>No active deliveries</p>
+            <p className="text-sm mt-2">Accept tasks to start delivering</p>
           </CardContent>
         </Card>
-      ))}
+      ) : (
+        <div className="grid gap-6">
+          {tasks.map((task) => (
+            <Card key={task._id} className="border-2 border-primary/20">
+              <CardContent className="pt-6">
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-lg">
+                      {task.surplusId?.title || 'Delivery Task'}
+                    </h3>
+                    <Badge variant="default">{task.status}</Badge>
+                  </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Delivery Timeline</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {timeline.map((step, index) => (
-              <div key={index} className="flex gap-4">
-                <div className="relative">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    step.completed ? "bg-success" : "bg-muted"
-                  }`}>
-                    {step.completed ? (
-                      <CheckCircle2 className="w-5 h-5 text-white" />
-                    ) : (
-                      <step.icon className="w-5 h-5 text-muted-foreground" />
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="p-3 bg-muted rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <MapPin className="w-4 h-4 text-success" />
+                        <span className="font-medium text-sm">Pickup</span>
+                      </div>
+                      <p className="text-sm">{task.pickupLocation.address}</p>
+                    </div>
+
+                    <div className="p-3 bg-muted rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <MapPin className="w-4 h-4 text-destructive" />
+                        <span className="font-medium text-sm">Delivery</span>
+                      </div>
+                      <p className="text-sm">{task.deliveryLocation.address}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    {!task.actualPickup && (
+                      <Button
+                        onClick={() => handleMarkPickedUp(task._id)}
+                        disabled={updating === task._id}
+                        className="flex-1"
+                      >
+                        {updating === task._id ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                        )}
+                        Mark as Picked Up
+                      </Button>
+                    )}
+                    {task.actualPickup && !task.actualDelivery && (
+                      <Button
+                        onClick={() => handleMarkDelivered(task._id)}
+                        disabled={updating === task._id}
+                        className="flex-1 bg-success hover:bg-success/90"
+                      >
+                        {updating === task._id ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                        )}
+                        Mark as Delivered
+                      </Button>
                     )}
                   </div>
-                  {index < timeline.length - 1 && (
-                    <div className={`absolute left-1/2 top-10 w-0.5 h-8 -ml-px ${
-                      step.completed ? "bg-success" : "bg-muted"
-                    }`} />
-                  )}
                 </div>
-                <div className="flex-1 pb-8">
-                  <h4 className="font-semibold">{step.label}</h4>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

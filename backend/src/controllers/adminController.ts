@@ -59,10 +59,12 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
 
 export const verifyUser = async (req: AuthRequest, res: Response) => {
   try {
+    const { userId } = req.params;
     const { isVerified } = req.body;
+
     const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { isVerified },
+      userId,
+      { isVerified: isVerified },
       { new: true }
     ).select('-password');
 
@@ -70,15 +72,11 @@ export const verifyUser = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Log activity
-    await new ActivityLog({
-      userId: req.user?.userId,
-      action: isVerified ? 'VERIFY_USER' : 'UNVERIFY_USER',
-      resourceType: 'user',
-      resourceId: user._id,
-    }).save();
-
-    res.json({ success: true, message: 'User verification updated', data: user });
+    res.json({ 
+      success: true, 
+      message: `User ${isVerified ? 'verified' : 'unverified'} successfully`,
+      data: user 
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -131,7 +129,9 @@ export const getActivityLogs = async (req: AuthRequest, res: Response) => {
     const { limit = 50, resourceType } = req.query;
     const query: any = {};
 
-    if (resourceType) query.resourceType = resourceType;
+    if (resourceType && resourceType !== 'all') {
+      query.resourceType = resourceType;
+    }
 
     const logs = await ActivityLog.find(query)
       .populate('userId', 'name email role')
@@ -140,6 +140,7 @@ export const getActivityLogs = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, data: logs });
   } catch (error: any) {
+    console.error('Get activity logs error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -162,6 +163,116 @@ export const getDemandForecast = async (req: AuthRequest, res: Response) => {
         generatedAt: new Date(),
         model: 'demand-prediction-v1',
       },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getAllSurplus = async (req: AuthRequest, res: Response) => {
+  try {
+    const surplus = await Surplus.find()
+      .populate('donorId', 'name email location')
+      .populate('claimedBy', 'name email')
+      .populate('logisticsPartnerId', 'name email vehicleType')
+      .sort({ createdAt: -1 });
+    
+    res.json({ success: true, data: surplus });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getAllTasks = async (req: AuthRequest, res: Response) => {
+  try {
+    const tasks = await Task.find()
+      .populate('surplusId', 'title quantity unit category')
+      .populate('donorId', 'name email location')
+      .populate('ngoId', 'name email location')
+      .populate('logisticsPartnerId', 'name email vehicleType')
+      .sort({ createdAt: -1 });
+    
+    res.json({ success: true, data: tasks });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getAllRequests = async (req: AuthRequest, res: Response) => {
+  try {
+    const requests = await Request.find()
+      .populate('ngoId', 'name email location')
+      .sort({ createdAt: -1 });
+    
+    res.json({ success: true, data: requests });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = await User.findByIdAndDelete(userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'User deleted successfully' 
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getPlatformStats = async (req: AuthRequest, res: Response) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const totalDonors = await User.countDocuments({ role: 'donor' });
+    const totalNGOs = await User.countDocuments({ role: 'ngo' });
+    const totalLogistics = await User.countDocuments({ role: 'logistics' });
+    
+    const totalSurplus = await Surplus.countDocuments();
+    const availableSurplus = await Surplus.countDocuments({ status: 'available' });
+    const deliveredSurplus = await Surplus.countDocuments({ status: 'delivered' });
+    
+    const totalTasks = await Task.countDocuments();
+    const completedTasks = await Task.countDocuments({ status: 'delivered' });
+    const activeTasks = await Task.countDocuments({ 
+      status: { $in: ['assigned', 'picked-up', 'in-transit'] } 
+    });
+
+    const totalRequests = await Request.countDocuments();
+    const pendingVerifications = await User.countDocuments({ isVerified: false });
+
+    res.json({
+      success: true,
+      data: {
+        users: {
+          total: totalUsers,
+          donors: totalDonors,
+          ngos: totalNGOs,
+          logistics: totalLogistics,
+          pendingVerifications
+        },
+        surplus: {
+          total: totalSurplus,
+          available: availableSurplus,
+          delivered: deliveredSurplus
+        },
+        tasks: {
+          total: totalTasks,
+          completed: completedTasks,
+          active: activeTasks
+        },
+        requests: {
+          total: totalRequests
+        }
+      }
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

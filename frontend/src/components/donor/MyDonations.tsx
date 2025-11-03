@@ -18,6 +18,7 @@ const MyDonations = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [processedDonations, setProcessedDonations] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchDonations();
@@ -59,7 +60,19 @@ const MyDonations = () => {
           description: "Request accepted. NGO has been notified.",
         });
         
-        // Force immediate re-fetch to update the UI
+        // Mark this donation as processed to hide buttons immediately
+        setProcessedDonations(prev => new Set(prev).add(donation._id));
+        
+        // Immediately update the local state to 'accepted' status
+        setDonations(prevDonations => 
+          prevDonations.map(d => 
+            d._id === donation._id 
+              ? { ...d, status: 'accepted' as any }
+              : d
+          )
+        );
+        
+        // Then fetch fresh data from server
         await fetchDonations();
       } else {
         toast({
@@ -90,7 +103,20 @@ const MyDonations = () => {
           title: "Success!",
           description: "Request rejected. Item is now available for others.",
         });
-        // Immediately fetch fresh data to update the UI
+        
+        // Mark this donation as processed to hide buttons immediately
+        setProcessedDonations(prev => new Set(prev).add(donation._id));
+        
+        // Immediately update the local state
+        setDonations(prevDonations => 
+          prevDonations.map(d => 
+            d._id === donation._id 
+              ? { ...d, status: 'available' as any, claimedBy: undefined }
+              : d
+          )
+        );
+        
+        // Then fetch fresh data from server
         await fetchDonations();
       } else {
         toast({
@@ -116,8 +142,10 @@ const MyDonations = () => {
         return "bg-success text-white";
       case "in-transit":
         return "bg-primary text-white";
+      case "accepted":
+        return "bg-blue-500 text-white"; // Changed from bg-info to bg-blue-500
       case "claimed":
-        return "bg-warning"; // Waiting for pickup
+        return "bg-warning text-black font-medium"; // Waiting for donor approval
       case "available":
         return "bg-secondary";
       case "expired":
@@ -162,7 +190,8 @@ const MyDonations = () => {
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="claimed">Awaiting Pickup</SelectItem>
+                  <SelectItem value="claimed">Awaiting Your Approval</SelectItem>
+                  <SelectItem value="accepted">Accepted - Awaiting Pickup</SelectItem>
                   <SelectItem value="in-transit">Picked Up (In Transit)</SelectItem>
                   <SelectItem value="delivered">Delivered</SelectItem>
                   <SelectItem value="expired">Expired</SelectItem>
@@ -257,18 +286,18 @@ const MyDonations = () => {
 
                       {/* Right Section - Status & Actions */}
                       <div className="flex flex-col items-start lg:items-end gap-3 lg:min-w-[200px]">
-                        {donation.status === 'claimed' ? (
+                        {donation.status === 'claimed' && !processedDonations.has(donation._id) ? (
                           <div className="w-full space-y-3">
                             <Badge className={`${getStatusColor(donation.status)} text-sm px-3 py-1`}>
                               <AlertCircle className="w-3 h-3 mr-1" />
-                              Awaiting Logistics Pickup
+                              Awaiting Your Approval
                             </Badge>
                             <div className="flex gap-2 w-full">
                               <Button
                                 size="sm"
                                 variant="default"
                                 onClick={() => handleAcceptRequest(donation)}
-                                disabled={actionLoading === donation._id}
+                                disabled={actionLoading === donation._id || processedDonations.has(donation._id)}
                                 className="flex-1"
                               >
                                 {actionLoading === donation._id ? (
@@ -284,7 +313,7 @@ const MyDonations = () => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleRejectRequest(donation)}
-                                disabled={actionLoading === donation._id}
+                                disabled={actionLoading === donation._id || processedDonations.has(donation._id)}
                                 className="flex-1 border-destructive text-destructive hover:bg-destructive hover:text-white"
                               >
                                 {actionLoading === donation._id ? (
@@ -305,9 +334,10 @@ const MyDonations = () => {
                           <Badge className={`${getStatusColor(donation.status)} text-sm px-4 py-1.5`}>
                             {donation.status === 'delivered' && <CheckCircle className="w-3 h-3 mr-1" />}
                             {donation.status === 'in-transit' && <Truck className="w-3 h-3 mr-1" />}
+                            {donation.status === 'accepted' && <Clock className="w-3 h-3 mr-1" />}
                             {donation.status === 'available' && <Clock className="w-3 h-3 mr-1" />}
                             {donation.status === 'claimed' && <AlertCircle className="w-3 h-3 mr-1" />}
-                            {donation.status.replace('-', ' ')}
+                            {donation.status === 'accepted' ? 'Awaiting Pickup' : donation.status.replace('-', ' ')}
                           </Badge>
                         )}
                       </div>
@@ -359,7 +389,7 @@ const MyDonations = () => {
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-warning">
-                    {donations.filter(d => d.status === 'in-transit' || d.status === 'claimed').length}
+                    {donations.filter(d => d.status === 'in-transit' || d.status === 'accepted').length}
                   </div>
                   <p className="text-xs text-muted-foreground">In Progress</p>
                 </div>

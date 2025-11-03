@@ -140,6 +140,96 @@ export const claimSurplus = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const getClaimedSurplus = async (req: AuthRequest, res: Response) => {
+  try {
+    // Get all surplus items claimed by this NGO
+    const claimedSurplus = await Surplus.find({
+      claimedBy: req.user?.userId,
+    })
+      .populate('donorId', 'name location')
+      .populate('logisticsPartnerId', 'name vehicleType')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, data: claimedSurplus });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const confirmSurplusReceived = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const surplus = await Surplus.findOne({
+      _id: id,
+      claimedBy: req.user?.userId,
+    });
+
+    if (!surplus) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Surplus not found or not claimed by you' 
+      });
+    }
+
+    // Check if item is in-transit or already delivered
+    if (surplus.status !== 'in-transit' && surplus.status !== 'delivered') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Item must be in-transit or delivered to confirm receipt' 
+      });
+    }
+
+    // Update status to delivered if it's in-transit
+    if (surplus.status === 'in-transit') {
+      surplus.status = 'delivered';
+      await surplus.save();
+
+      // Update associated task
+      await Task.findOneAndUpdate(
+        { surplusId: surplus._id },
+        { status: 'delivered', actualDelivery: new Date() }
+      );
+    }
+
+    // Create notification for donor
+    const ngo = await User.findById(req.user?.userId);
+    
+    await new Notification({
+      userId: surplus.donorId,
+      type: 'delivery_update',
+      title: 'Delivery Confirmed',
+      message: `${ngo?.name || 'NGO'} has confirmed receipt of your donation: ${surplus.title}. Thank you for your contribution!`,
+      data: {
+        surplusId: surplus._id,
+        ngoId: req.user?.userId,
+      },
+    }).save();
+
+    // Also notify logistics partner if assigned
+    if (surplus.logisticsPartnerId) {
+      await new Notification({
+        userId: surplus.logisticsPartnerId,
+        type: 'delivery_update',
+        title: 'Delivery Confirmed by Recipient',
+        message: `${ngo?.name || 'NGO'} has confirmed receipt of ${surplus.title}`,
+        data: {
+          surplusId: surplus._id,
+          ngoId: req.user?.userId,
+        },
+      }).save();
+    }
+
+    res.json({
+      success: true,
+      message: 'Receipt confirmed successfully',
+      data: surplus,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const getNGOImpact = async (req: AuthRequest, res: Response) => {
   try {
     const totalRequests = await Request.countDocuments({ ngoId: req.user?.userId });
@@ -185,6 +275,32 @@ export const getUrgentNeeds = async (req: AuthRequest, res: Response) => {
       .limit(10);
 
     res.json({ success: true, data: urgentRequests });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const markRequestReceived = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const request = await Request.findOne({
+      _id: id,
+      ngoId: req.user?.userId,
+    });
+
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Request not found' });
+    }
+
+    request.status = 'fulfilled';
+    await request.save();
+
+    res.json({
+      success: true,
+      message: 'Request marked as received',
+      data: request,
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

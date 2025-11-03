@@ -177,8 +177,10 @@ export const acceptSurplusRequest = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: 'Surplus request not found' });
     }
 
-    // DON'T change surplus status - it should remain 'claimed' until logistics picks it up
-    // surplus.status remains 'claimed'
+    // Change status to 'accepted' - a new intermediate status
+    // This prevents the buttons from showing again after reload
+    surplus.status = 'accepted' as any; // TypeScript workaround
+    await surplus.save();
 
     // Update task status to 'assigned' (ready for logistics to accept)
     const task = await Task.findOneAndUpdate(
@@ -193,7 +195,7 @@ export const acceptSurplusRequest = async (req: AuthRequest, res: Response) => {
       userId: surplus.claimedBy,
       type: 'request_received',
       title: 'Request Accepted',
-      message: `${donor?.name || 'Donor'} has accepted your request for: ${surplus.title}. Waiting for logistics pickup.`,
+      message: `${donor?.name || 'Donor'} has accepted your request for: ${surplus.title}. Waiting for logistics to pick it up.`,
       data: {
         surplusId: surplus._id,
         donorId: req.user?.userId,
@@ -203,7 +205,7 @@ export const acceptSurplusRequest = async (req: AuthRequest, res: Response) => {
 
     res.json({
       success: true,
-      message: 'Request accepted. Task is now available for logistics partners.',
+      message: 'Request accepted. Task is now available for logistics partners to pick up.',
       data: { surplus, task },
     });
   } catch (error: any) {

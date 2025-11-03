@@ -15,7 +15,7 @@ export interface ISurplus extends Document {
       longitude: number;
     };
   };
-  status: 'available' | 'claimed' | 'in-transit' | 'delivered' | 'expired';
+  status: 'available' | 'claimed' | 'accepted' | 'in-transit' | 'delivered' | 'expired';
   claimedBy?: mongoose.Types.ObjectId;
   logisticsPartnerId?: mongoose.Types.ObjectId;
   images?: string[];
@@ -68,7 +68,7 @@ const surplusSchema = new Schema<ISurplus>(
     },
     status: {
       type: String,
-      enum: ['available', 'claimed', 'in-transit', 'delivered', 'expired'],
+      enum: ['available', 'claimed', 'accepted', 'in-transit', 'delivered', 'expired'],
       default: 'available',
     },
     claimedBy: {

@@ -1,24 +1,40 @@
 import express from 'express';
 import { authenticate, authorizeRoles } from '../middleware/auth';
 import {
-  getOverview,
   getAllUsers,
+  getAllSurplus,
+  getAllTasks,
+  getAllRequests,
   verifyUser,
-  getAnalytics,
+  deleteUser,
+  getPlatformStats,
   getActivityLogs,
-  getDemandForecast,
 } from '../controllers/adminController';
 
 const router = express.Router();
 
+// All admin routes require authentication and admin role
 router.use(authenticate);
 router.use(authorizeRoles('admin'));
 
-router.get('/overview', getOverview);
+// Platform statistics
+router.get('/stats', getPlatformStats);
+
+// User management
 router.get('/users', getAllUsers);
-router.patch('/verify-user/:id', verifyUser);
-router.get('/analytics', getAnalytics);
+router.patch('/users/:userId/verify', verifyUser);
+router.delete('/users/:userId', deleteUser);
+
+// Surplus management
+router.get('/surplus', getAllSurplus);
+
+// Task management
+router.get('/tasks', getAllTasks);
+
+// Request management
+router.get('/requests', getAllRequests);
+
+// Activity logs
 router.get('/logs', getActivityLogs);
-router.get('/forecast', getDemandForecast);
 
 export default router;

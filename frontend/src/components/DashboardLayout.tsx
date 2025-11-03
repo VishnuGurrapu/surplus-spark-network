@@ -77,6 +77,7 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       { path: "/dashboard/ngo/browse", label: "Browse Surplus", icon: Package },
       { path: "/dashboard/ngo/request", label: "Request Items", icon: Plus },
       { path: "/dashboard/ngo/requests", label: "My Requests", icon: Package },
+      { path: "/dashboard/ngo/track-requests", label: "Track Requests", icon: QrCode },
       { path: "/dashboard/ngo/urgent", label: "Urgent Needs", icon: AlertCircle },
       { path: "/dashboard/ngo/impact", label: "Impact", icon: TrendingUp },
       { path: "/dashboard/ngo/leaderboard", label: "Leaderboard", icon: Trophy },
@@ -119,7 +120,7 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       <aside className="w-64 bg-card border-r border-border p-6 flex flex-col">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-primary">Surplus Spark</h1>
+            <h1 className="text-2xl font-bold text-primary">ShareGood</h1>
             <p className="text-sm text-muted-foreground capitalize">{userRole} Dashboard</p>
           </div>
           
