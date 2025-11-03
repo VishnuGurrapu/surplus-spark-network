@@ -1,21 +1,22 @@
 import express from 'express';
 import { authenticate, authorizeRoles } from '../middleware/auth';
+import {
+  getAvailableTasks,
+  getMyTasks,
+  acceptTask,
+  updateTaskStatus,
+  getPerformance,
+} from '../controllers/logisticsController';
 
 const router = express.Router();
 
-// All routes require authentication and logistics role
 router.use(authenticate);
 router.use(authorizeRoles('logistics'));
 
-// Get logistics dashboard data
-router.get('/dashboard', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Logistics dashboard',
-    data: {
-      // Add logistics-specific data here
-    }
-  });
-});
+router.get('/tasks', getAvailableTasks);
+router.get('/my-tasks', getMyTasks);
+router.post('/tasks/accept/:id', acceptTask);
+router.patch('/tasks/status/:id', updateTaskStatus);
+router.get('/performance', getPerformance);
 
 export default router;

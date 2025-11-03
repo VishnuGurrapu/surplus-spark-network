@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Routes, Route } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Home, Plus, Package, QrCode, TrendingUp, Trophy, User } from "lucide-react";
 import DonorHome from "@/components/donor/DonorHome";
@@ -10,47 +11,17 @@ import Leaderboard from "@/components/donor/Leaderboard";
 import Profile from "@/components/donor/Profile";
 
 const DonorDashboard = () => {
-  const [activeTab, setActiveTab] = useState("home");
-
-  const tabs = [
-    { label: "Home", value: "home", icon: Home },
-    { label: "Add Surplus", value: "add", icon: Plus },
-    { label: "My Donations", value: "donations", icon: Package },
-    { label: "Track Donation", value: "track", icon: QrCode },
-    { label: "Impact", value: "impact", icon: TrendingUp },
-    { label: "Leaderboard", value: "leaderboard", icon: Trophy },
-    { label: "Profile", value: "profile", icon: User }
-  ];
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case "home":
-        return <DonorHome />;
-      case "add":
-        return <AddSurplus />;
-      case "donations":
-        return <MyDonations />;
-      case "track":
-        return <TrackDonation />;
-      case "impact":
-        return <Impact />;
-      case "leaderboard":
-        return <Leaderboard />;
-      case "profile":
-        return <Profile />;
-      default:
-        return <DonorHome />;
-    }
-  };
-
   return (
-    <DashboardLayout
-      title="Donor Dashboard"
-      tabs={tabs}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-    >
-      {renderContent()}
+    <DashboardLayout userRole="donor">
+      <Routes>
+        <Route index element={<DonorHome />} />
+        <Route path="donations" element={<MyDonations />} />
+        <Route path="add-surplus" element={<AddSurplus />} />
+        <Route path="track" element={<TrackDonation />} />
+        <Route path="impact" element={<Impact />} />
+        <Route path="leaderboard" element={<Leaderboard />} />
+        <Route path="profile" element={<Profile />} />
+      </Routes>
     </DashboardLayout>
   );
 };

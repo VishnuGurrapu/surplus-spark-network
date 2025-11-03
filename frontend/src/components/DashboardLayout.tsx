@@ -1,109 +1,106 @@
-import { ReactNode, useState } from "react";
+import { ReactNode } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Bell, LogOut, Menu, X, Moon, Sun } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { LogOut, Home, Plus, Package, TrendingUp, Users, Truck, Settings, QrCode, Trophy, User } from "lucide-react";
+import { logout } from "@/lib/api";
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  tabs: { label: string; value: string; icon: React.ElementType }[];
-  activeTab: string;
-  onTabChange: (value: string) => void;
-  title: string;
+  userRole: 'donor' | 'ngo' | 'logistics' | 'admin';
 }
 
-const DashboardLayout = ({ children, tabs, activeTab, onTabChange, title }: DashboardLayoutProps) => {
+const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const location = useLocation();
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.documentElement.classList.toggle("dark");
+  const handleLogout = () => {
+    logout();
+    navigate("/select-role");
+  };
+
+  const menuConfigs = {
+    donor: [
+      { path: "/dashboard/donor", label: "Overview", icon: Home },
+      { path: "/dashboard/donor/add-surplus", label: "Add Surplus", icon: Plus },
+      { path: "/dashboard/donor/donations", label: "My Donations", icon: Package },
+      { path: "/dashboard/donor/track", label: "Track Donation", icon: QrCode },
+      { path: "/dashboard/donor/impact", label: "Impact", icon: TrendingUp },
+      { path: "/dashboard/donor/leaderboard", label: "Leaderboard", icon: Trophy },
+      { path: "/dashboard/donor/profile", label: "Profile", icon: User },
+    ],
+    ngo: [
+      { path: "/dashboard/ngo", label: "Overview", icon: Home },
+      { path: "/dashboard/ngo/browse", label: "Browse Surplus", icon: Package },
+      { path: "/dashboard/ngo/requests", label: "My Requests", icon: Plus },
+      { path: "/dashboard/ngo/impact", label: "Impact", icon: TrendingUp },
+    ],
+    logistics: [
+      { path: "/dashboard/logistics", label: "Overview", icon: Home },
+      { path: "/dashboard/logistics/tasks", label: "Available Tasks", icon: Package },
+      { path: "/dashboard/logistics/my-tasks", label: "My Tasks", icon: Truck },
+      { path: "/dashboard/logistics/performance", label: "Performance", icon: TrendingUp },
+    ],
+    admin: [
+      { path: "/dashboard/admin", label: "Overview", icon: Home },
+      { path: "/dashboard/admin/users", label: "Manage Users", icon: Users },
+      { path: "/dashboard/admin/analytics", label: "Analytics", icon: TrendingUp },
+      { path: "/dashboard/admin/settings", label: "Settings", icon: Settings },
+    ],
+  };
+
+  const menuItems = menuConfigs[userRole] || [];
+
+  const isActive = (path: string) => {
+    if (path === `/dashboard/${userRole}`) {
+      return location.pathname === path;
+    }
+    return location.pathname.startsWith(path);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/5">
-      {/* Top Navigation */}
-      <nav className="bg-card border-b border-border shadow-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-              >
-                {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </Button>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                {title}
-              </h1>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
-                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </Button>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
-                <LogOut className="w-5 h-5" />
-              </Button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar */}
+      <aside className="w-64 bg-card border-r border-border p-6 flex flex-col">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-primary">Surplus Spark</h1>
+          <p className="text-sm text-muted-foreground capitalize">{userRole} Dashboard</p>
         </div>
-      </nav>
 
-      <div className="flex">
-        {/* Sidebar */}
-        <AnimatePresence>
-          {(sidebarOpen || window.innerWidth >= 768) && (
-            <motion.aside
-              initial={{ x: -300 }}
-              animate={{ x: 0 }}
-              exit={{ x: -300 }}
-              transition={{ type: "spring", damping: 25 }}
-              className="fixed md:sticky top-16 left-0 h-[calc(100vh-4rem)] w-64 bg-card border-r border-border z-30 overflow-y-auto"
-            >
-              <nav className="p-4 space-y-2">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <Button
-                      key={tab.value}
-                      variant={activeTab === tab.value ? "default" : "ghost"}
-                      className="w-full justify-start"
-                      onClick={() => {
-                        onTabChange(tab.value);
-                        setSidebarOpen(false);
-                      }}
-                    >
-                      <Icon className="w-5 h-5 mr-3" />
-                      {tab.label}
-                    </Button>
-                  );
-                })}
-              </nav>
-            </motion.aside>
-          )}
-        </AnimatePresence>
+        <nav className="flex-1 space-y-2">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Button
+                key={item.path}
+                variant={isActive(item.path) ? "default" : "ghost"}
+                className={cn(
+                  "w-full justify-start",
+                  isActive(item.path) && "bg-primary text-primary-foreground"
+                )}
+                onClick={() => navigate(item.path)}
+              >
+                <Icon className="w-4 h-4 mr-2" />
+                {item.label}
+              </Button>
+            );
+          })}
+        </nav>
 
-        {/* Main Content */}
-        <main className="flex-1 p-4 md:p-8">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            {children}
-          </motion.div>
-        </main>
-      </div>
+        <Button
+          variant="outline"
+          className="w-full mt-4"
+          onClick={handleLogout}
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Logout
+        </Button>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-8 overflow-auto">
+        {children}
+      </main>
     </div>
   );
 };

@@ -26,7 +26,7 @@ const App = () => (
           <Route path="/select-role" element={<RoleSelection />} />
           <Route path="/auth/:role" element={<Auth />} />
           <Route 
-            path="/dashboard/donor" 
+            path="/dashboard/donor/*" 
             element={
               <ProtectedRoute allowedRoles={['donor']}>
                 <DonorDashboard />

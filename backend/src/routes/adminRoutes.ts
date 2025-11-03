@@ -1,21 +1,24 @@
 import express from 'express';
 import { authenticate, authorizeRoles } from '../middleware/auth';
+import {
+  getOverview,
+  getAllUsers,
+  verifyUser,
+  getAnalytics,
+  getActivityLogs,
+  getDemandForecast,
+} from '../controllers/adminController';
 
 const router = express.Router();
 
-// All routes require authentication and admin role
 router.use(authenticate);
 router.use(authorizeRoles('admin'));
 
-// Get admin dashboard data
-router.get('/dashboard', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Admin dashboard',
-    data: {
-      // Add admin-specific data here
-    }
-  });
-});
+router.get('/overview', getOverview);
+router.get('/users', getAllUsers);
+router.patch('/verify-user/:id', verifyUser);
+router.get('/analytics', getAnalytics);
+router.get('/logs', getActivityLogs);
+router.get('/forecast', getDemandForecast);
 
 export default router;

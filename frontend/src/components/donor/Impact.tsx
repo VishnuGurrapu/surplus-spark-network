@@ -1,21 +1,56 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Users, TrendingUp, Award } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, Loader2, Award, Package, TrendingUp, Heart } from "lucide-react";
+import { getDonorImpact } from "@/lib/api";
 
 const Impact = () => {
-  const stats = [
-    { label: "People Fed", value: "320", icon: Users, color: "text-primary" },
-    { label: "CO₂ Saved", value: "180 kg", icon: TrendingUp, color: "text-success" },
-    { label: "Items Donated", value: "47", icon: Heart, color: "text-destructive" },
-    { label: "Impact Points", value: "850", icon: Award, color: "text-warning" },
-  ];
+  const [impact, setImpact] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const badges = [
-    { name: "Rising Star", description: "Completed 10 donations", earned: true },
-    { name: "Eco Warrior", description: "Saved 100kg CO₂", earned: true },
-    { name: "Community Hero", description: "Helped 500 people", earned: false },
-    { name: "Consistency Champion", description: "30 consecutive days", earned: false },
-  ];
+  useEffect(() => {
+    fetchImpact();
+  }, []);
+
+  const fetchImpact = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await getDonorImpact();
+
+      if (response.success && response.data) {
+        setImpact(response.data);
+      } else {
+        setError(response.message || "Failed to fetch impact data");
+      }
+    } catch (err: any) {
+      console.error('Fetch impact error:', err);
+      setError(err.message || "An error occurred while fetching impact data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading impact data...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -24,81 +59,86 @@ const Impact = () => {
         <p className="text-muted-foreground">See the difference you're making in the community</p>
       </div>
 
-      {/* Impact Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <Card key={index} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.label}
-              </CardTitle>
-              <stat.icon className={`w-5 h-5 ${stat.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stat.value}</div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Donations</p>
+                <p className="text-3xl font-bold">{impact?.totalDonations || 0}</p>
+              </div>
+              <Package className="w-12 h-12 text-primary opacity-20" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Items Delivered</p>
+                <p className="text-3xl font-bold">{impact?.deliveredDonations || 0}</p>
+              </div>
+              <TrendingUp className="w-12 h-12 text-success opacity-20" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Quantity</p>
+                <p className="text-3xl font-bold">{impact?.totalQuantity || 0}</p>
+              </div>
+              <Heart className="w-12 h-12 text-destructive opacity-20" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Impact Chart */}
+      {/* Badges Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Monthly Impact Trend</CardTitle>
-          <CardDescription>Your donation activity over the last 6 months</CardDescription>
+          <CardTitle>Your Badges</CardTitle>
+          <CardDescription>Achievements unlocked through your contributions</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-64 flex items-end justify-between gap-2">
-            {[40, 65, 45, 80, 70, 90].map((height, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div
-                  className="w-full bg-gradient-to-t from-primary to-secondary rounded-t-lg transition-all hover:opacity-80"
-                  style={{ height: `${height}%` }}
-                />
-                <span className="text-xs text-muted-foreground">
-                  {["Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][i]}
-                </span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Badges & Achievements */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Achievements</CardTitle>
-          <CardDescription>Badges you've earned on your journey</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {badges.map((badge, index) => (
-              <div
-                key={index}
-                className={`p-4 rounded-lg border-2 transition-all ${
-                  badge.earned
-                    ? "border-primary bg-primary/5"
-                    : "border-muted bg-muted/20 opacity-60"
-                }`}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <h4 className="font-semibold">{badge.name}</h4>
-                  {badge.earned && <Badge variant="default">Earned</Badge>}
-                </div>
-                <p className="text-sm text-muted-foreground">{badge.description}</p>
-              </div>
-            ))}
-          </div>
+          {impact?.badges && impact.badges.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {impact.badges.map((badge: any, index: number) => (
+                <Card key={index} className="border-2 border-primary/20">
+                  <CardContent className="pt-6 text-center">
+                    <div className="text-6xl mb-3">{badge.icon}</div>
+                    <h3 className="font-semibold text-lg">{badge.name}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Keep up the great work!
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Award className="w-16 h-16 mx-auto mb-4 opacity-20" />
+              <p>No badges earned yet</p>
+              <p className="text-sm mt-2">Make more donations to unlock badges!</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Impact Summary */}
-      <Card className="border-success/20 bg-success/5">
+      <Card className="border-primary/20 bg-primary/5">
         <CardContent className="pt-6">
           <div className="text-center">
-            <h3 className="text-2xl font-bold mb-2">120 People Fed This Month</h3>
+            <h3 className="text-2xl font-bold mb-2">Thank You for Your Contribution!</h3>
             <p className="text-muted-foreground">
-              Your contributions have made a real difference. Keep up the amazing work!
+              Your {impact?.deliveredDonations || 0} delivered donations have made a real difference in people's lives.
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Together, we're building a more sustainable and caring community.
             </p>
           </div>
         </CardContent>

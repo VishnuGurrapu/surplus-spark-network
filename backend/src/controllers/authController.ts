@@ -193,3 +193,61 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
     });
   }
 };
+
+export const updateProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Authentication required' 
+      });
+    }
+
+    const { name, location, donorType, ngoRegistrationId, vehicleType } = req.body;
+    
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (location) updateData.location = location;
+    if (donorType) updateData.donorType = donorType;
+    if (ngoRegistrationId) updateData.ngoRegistrationId = ngoRegistrationId;
+    if (vehicleType) updateData.vehicleType = vehicleType;
+
+    const user = await User.findByIdAndUpdate(
+      req.user.userId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          location: user.location,
+          donorType: user.donorType,
+          ngoRegistrationId: user.ngoRegistrationId,
+          vehicleType: user.vehicleType,
+          isVerified: user.isVerified,
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error',
+      error: error.message 
+    });
+  }
+};

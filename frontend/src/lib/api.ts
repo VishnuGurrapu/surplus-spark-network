@@ -130,3 +130,197 @@ export const logout = () => {
   removeAuthToken();
   removeUser();
 };
+
+// Surplus interfaces
+export interface SurplusData {
+  title: string;
+  description: string;
+  category: 'food' | 'clothing' | 'medical' | 'educational' | 'other';
+  quantity: number;
+  unit: string;
+  expiryDate?: string;
+  location: {
+    address: string;
+    coordinates?: {
+      latitude: number;
+      longitude: number;
+    };
+  };
+  images?: string[];
+}
+
+export interface Surplus {
+  _id: string;
+  donorId: string;
+  title: string;
+  description: string;
+  category: string;
+  quantity: number;
+  unit: string;
+  expiryDate?: string;
+  location: {
+    address: string;
+    coordinates?: {
+      latitude: number;
+      longitude: number;
+    };
+  };
+  status: string;
+  claimedBy?: string;
+  logisticsPartnerId?: string;
+  images?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data?: T;
+  errors?: any[];
+}
+
+// Donor API functions
+export const createSurplus = async (data: SurplusData): Promise<ApiResponse<Surplus>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/donor/surplus`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      console.error('Create surplus error:', result);
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Network error during surplus creation:', error);
+    throw error;
+  }
+};
+
+export const getDonorSurplus = async (filters?: { status?: string; category?: string }): Promise<ApiResponse<Surplus[]>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const params = new URLSearchParams();
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.category) params.append('category', filters.category);
+
+    const url = `${API_BASE_URL}/donor/surplus${params.toString() ? `?${params.toString()}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch surplus:', error);
+    throw error;
+  }
+};
+
+export const getDonorImpact = async (): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/donor/impact`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch impact:', error);
+    throw error;
+  }
+};
+
+// Profile API functions
+export interface UpdateProfileData {
+  name?: string;
+  location?: string;
+  donorType?: string;
+  phone?: string;
+}
+
+export const updateProfile = async (data: UpdateProfileData): Promise<ApiResponse<User>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+
+    if (result.success && result.data?.user) {
+      // Update local storage
+      setUser(result.data.user);
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Network error during profile update:', error);
+    throw error;
+  }
+};
+
+export const getCurrentProfile = async (): Promise<ApiResponse<User>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch profile:', error);
+    throw error;
+  }
+};
