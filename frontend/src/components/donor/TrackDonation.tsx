@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { QrCode, Search, CheckCircle2, Package, Truck, MapPin, Loader2, AlertCircle, Navigation } from "lucide-react";
-import { trackDonationById } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
+import { QrCode, Search, CheckCircle2, Package, Truck, MapPin, Loader2, AlertCircle } from "lucide-react";
+import { trackDonationById, getDonorSurplus } from "@/lib/api";
 import { loadGoogleMapsScript, createMap, createMarker, geocodeAddress, getDirections } from "@/lib/googleMaps";
 
 const TrackDonation = () => {
@@ -12,9 +13,34 @@ const TrackDonation = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [trackingData, setTrackingData] = useState<any>(null);
+  const [myDonations, setMyDonations] = useState<any[]>([]);
+  const [loadingDonations, setLoadingDonations] = useState(true);
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<any>(null);
   const [mapLoading, setMapLoading] = useState(false);
+
+  // Fetch user's donations on mount
+  useEffect(() => {
+    fetchMyDonations();
+  }, []);
+
+  const fetchMyDonations = async () => {
+    try {
+      setLoadingDonations(true);
+      const response = await getDonorSurplus();
+      if (response.success && response.data) {
+        // Filter only donations that have been picked up or delivered
+        const activeDonations = response.data.filter(
+          (d: any) => d.status === 'in-transit' || d.status === 'delivered' || d.status === 'claimed'
+        );
+        setMyDonations(activeDonations);
+      }
+    } catch (err) {
+      console.error('Error fetching donations:', err);
+    } finally {
+      setLoadingDonations(false);
+    }
+  };
 
   const handleTrack = async () => {
     if (!donationId.trim()) {
@@ -176,6 +202,45 @@ const TrackDonation = () => {
         <p className="text-muted-foreground">Monitor your donation's journey in real-time</p>
       </div>
 
+      {/* My Donations List */}
+      {!loadingDonations && myDonations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>My Active Donations</CardTitle>
+            <CardDescription>Click on a donation to track it</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {myDonations.map((donation) => (
+                <div
+                  key={donation._id}
+                  className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-muted/80 cursor-pointer transition-colors"
+                  onClick={() => {
+                    setDonationId(donation._id);
+                    handleTrack();
+                  }}
+                >
+                  <div className="flex-1">
+                    <p className="font-medium">{donation.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {donation.quantity} {donation.unit} - {donation.category}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant="outline" className="capitalize">
+                      {donation.status.replace('-', ' ')}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ID: {donation._id.slice(-8)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Enter Tracking Details</CardTitle>
@@ -216,10 +281,20 @@ const TrackDonation = () => {
         <>
           <Card>
             <CardHeader>
-              <CardTitle>{trackingData.surplus.title}</CardTitle>
-              <CardDescription>
-                {trackingData.surplus.quantity} {trackingData.surplus.unit} - {trackingData.surplus.category}
-              </CardDescription>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle>{trackingData.surplus.title}</CardTitle>
+                  <CardDescription>
+                    {trackingData.surplus.quantity} {trackingData.surplus.unit} - {trackingData.surplus.category}
+                  </CardDescription>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium">Donation ID</p>
+                  <p className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">
+                    {trackingData.surplus._id}
+                  </p>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-8">

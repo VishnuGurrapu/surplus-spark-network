@@ -259,3 +259,119 @@ export const rejectSurplusRequest = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const generateImpactCard = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const surplus = await Surplus.findOne({
+      _id: id,
+      donorId: req.user?.userId,
+      status: 'delivered',
+    }).populate('claimedBy', 'name');
+
+    if (!surplus) {
+      return res.status(404).json({ success: false, message: 'Delivered donation not found' });
+    }
+
+    const donor = await User.findById(req.user?.userId);
+    const totalDonations = await Surplus.countDocuments({
+      donorId: req.user?.userId,
+      status: 'delivered',
+    });
+
+    const totalImpact = await Surplus.aggregate([
+      { $match: { donorId: req.user?.userId, status: 'delivered' } },
+      { $group: { _id: null, total: { $sum: '$quantity' } } },
+    ]);
+
+    // Calculate estimated people helped based on category
+    let peopleHelped = 0;
+    if (surplus.category === 'food') {
+      peopleHelped = Math.floor(surplus.quantity / 3);
+    } else if (surplus.category === 'clothing') {
+      peopleHelped = surplus.quantity;
+    } else {
+      peopleHelped = Math.floor(surplus.quantity / 2);
+    }
+
+    const impactCard = {
+      donorName: donor?.name || 'Anonymous Donor',
+      donationTitle: surplus.title,
+      quantity: surplus.quantity,
+      unit: surplus.unit,
+      peopleHelped,
+      ngoName: (surplus.claimedBy as any)?.name || 'NGO',
+      date: surplus.updatedAt,
+      totalDonations,
+      totalImpact: totalImpact[0]?.total || 0,
+      shareUrl: `${process.env.FRONTEND_URL}/donor/${req.user?.userId}`,
+    };
+
+    res.json({ success: true, data: impactCard });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getPublicDonorProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const { donorId } = req.params;
+
+    const donor = await User.findById(donorId).select('name createdAt');
+    if (!donor || donor.role !== 'donor') {
+      return res.status(404).json({ success: false, message: 'Donor not found' });
+    }
+
+    const totalDonations = await Surplus.countDocuments({
+      donorId,
+      status: 'delivered',
+    });
+
+    const categoryBreakdown = await Surplus.aggregate([
+      { $match: { donorId, status: 'delivered' } },
+      { $group: { _id: '$category', count: { $sum: 1 }, quantity: { $sum: '$quantity' } } },
+    ]);
+
+    const totalImpact = await Surplus.aggregate([
+      { $match: { donorId, status: 'delivered' } },
+      { $group: { _id: null, total: { $sum: '$quantity' } } },
+    ]);
+
+    // Calculate badges
+    const badges = [];
+    if (totalDonations >= 1) badges.push({ name: 'First Donation', icon: '🎉', description: 'Made your first donation' });
+    if (totalDonations >= 5) badges.push({ name: 'Consistent Contributor', icon: '⭐', description: '5+ donations completed' });
+    if (totalDonations >= 10) badges.push({ name: 'Bronze Donor', icon: '🥉', description: '10+ donations completed' });
+    if (totalDonations >= 25) badges.push({ name: 'Silver Donor', icon: '🥈', description: '25+ donations completed' });
+    if (totalDonations >= 50) badges.push({ name: 'Gold Donor', icon: '🥇', description: '50+ donations completed' });
+    if (totalDonations >= 100) badges.push({ name: 'Impact Hero', icon: '🏆', description: '100+ donations completed' });
+
+    // Estimate people helped
+    let totalPeopleHelped = 0;
+    categoryBreakdown.forEach((cat: any) => {
+      if (cat._id === 'food') {
+        totalPeopleHelped += Math.floor(cat.quantity / 3);
+      } else if (cat._id === 'clothing') {
+        totalPeopleHelped += cat.quantity;
+      } else {
+        totalPeopleHelped += Math.floor(cat.quantity / 2);
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        donorName: donor.name,
+        memberSince: donor.createdAt,
+        totalDonations,
+        totalImpact: totalImpact[0]?.total || 0,
+        totalPeopleHelped,
+        categoryBreakdown,
+        badges,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
