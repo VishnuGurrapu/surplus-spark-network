@@ -286,6 +286,52 @@ export const trackDonationById = async (id: string): Promise<ApiResponse<any>> =
   }
 };
 
+export const getDonorLeaderboard = async (limit = 10): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/donor/leaderboard?limit=${limit}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch leaderboard:', error);
+    throw error;
+  }
+};
+
+export const getNGOLeaderboard = async (limit = 10): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/ngo/leaderboard?limit=${limit}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch NGO leaderboard:', error);
+    throw error;
+  }
+};
+
 // Profile API functions
 export interface UpdateProfileData {
   name?: string;
@@ -511,6 +557,161 @@ export const getNGOImpact = async (): Promise<ApiResponse<any>> => {
     return response.json();
   } catch (error) {
     console.error('Network error during fetch NGO impact:', error);
+    throw error;
+  }
+};
+
+export const getUrgentNeeds = async (): Promise<ApiResponse<NGORequest[]>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/ngo/urgent-needs`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch urgent needs:', error);
+    throw error;
+  }
+};
+
+// Notification interfaces
+export interface Notification {
+  _id: string;
+  userId: string;
+  type: 'surplus_claimed' | 'request_received' | 'delivery_update' | 'task_assigned' | 'general';
+  title: string;
+  message: string;
+  data?: any;
+  isRead: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Notification API functions
+export const getNotifications = async (unreadOnly = false): Promise<ApiResponse<{ notifications: Notification[]; unreadCount: number }>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const params = new URLSearchParams();
+    if (unreadOnly) params.append('unreadOnly', 'true');
+
+    const response = await fetch(`${API_BASE_URL}/notifications?${params.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch notifications:', error);
+    throw error;
+  }
+};
+
+export const markNotificationAsRead = async (id: string): Promise<ApiResponse<Notification>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/notifications/${id}/read`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during mark notification:', error);
+    throw error;
+  }
+};
+
+export const markAllNotificationsAsRead = async (): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/notifications/read-all`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during mark all notifications:', error);
+    throw error;
+  }
+};
+
+export const acceptSurplusRequest = async (id: string): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/donor/surplus/${id}/accept`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during accept request:', error);
+    throw error;
+  }
+};
+
+export const rejectSurplusRequest = async (id: string): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/donor/surplus/${id}/reject`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during reject request:', error);
     throw error;
   }
 };

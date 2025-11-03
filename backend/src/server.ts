@@ -7,6 +7,7 @@ import donorRoutes from './routes/donorRoutes';
 import ngoRoutes from './routes/ngoRoutes';
 import logisticsRoutes from './routes/logisticsRoutes';
 import adminRoutes from './routes/adminRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -29,6 +30,7 @@ app.use('/api/donor', donorRoutes);
 app.use('/api/ngo', ngoRoutes);
 app.use('/api/logistics', logisticsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check route
 app.get('/api/health', (req: Request, res: Response) => {

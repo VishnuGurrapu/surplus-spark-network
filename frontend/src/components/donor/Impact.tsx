@@ -67,6 +67,7 @@ const Impact = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Total Donations</p>
                 <p className="text-3xl font-bold">{impact?.totalDonations || 0}</p>
+                <p className="text-xs text-muted-foreground mt-1">Picked up & in transit</p>
               </div>
               <Package className="w-12 h-12 text-primary opacity-20" />
             </div>
@@ -135,10 +136,10 @@ const Impact = () => {
           <div className="text-center">
             <h3 className="text-2xl font-bold mb-2">Thank You for Your Contribution!</h3>
             <p className="text-muted-foreground">
-              Your {impact?.deliveredDonations || 0} delivered donations have made a real difference in people's lives.
+              Your {impact?.totalDonations || 0} donations have been picked up by logistics partners and are making a real difference in people's lives.
             </p>
             <p className="text-sm text-muted-foreground mt-2">
-              Together, we're building a more sustainable and caring community.
+              💡 <strong>Note:</strong> Donations are counted only after logistics partners pick them up (status: "in-transit" or "delivered"), ensuring accurate impact tracking.
             </p>
           </div>
         </CardContent>

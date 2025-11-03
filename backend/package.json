@@ -4,9 +4,10 @@
   "description": "Backend API for Surplus Spark Network",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "nodemon src/server.ts",
+    "dev": "nodemon --exec ts-node src/server.ts",
+    "start": "ts-node src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "serve": "node dist/server.js"
   },
   "keywords": [
     "food",

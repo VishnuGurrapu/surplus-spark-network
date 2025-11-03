@@ -5,7 +5,11 @@ import Surplus from '../models/Surplus';
 
 export const getAvailableTasks = async (req: AuthRequest, res: Response) => {
   try {
-    const tasks = await Task.find({ status: 'pending' })
+    // Show tasks that are 'pending' OR 'assigned' (donor accepted, ready for pickup)
+    const tasks = await Task.find({ 
+      status: { $in: ['pending', 'assigned'] },
+      logisticsPartnerId: { $exists: false } // Not yet claimed by any logistics partner
+    })
       .populate('surplusId', 'title description quantity unit')
       .populate('donorId', 'name location phone')
       .populate('ngoId', 'name location phone')
@@ -44,21 +48,29 @@ export const acceptTask = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: 'Task not found' });
     }
 
-    if (task.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Task already assigned' });
+    if (task.logisticsPartnerId) {
+      return res.status(400).json({ success: false, message: 'Task already claimed by another partner' });
     }
 
+    if (task.status !== 'pending' && task.status !== 'assigned') {
+      return res.status(400).json({ success: false, message: 'Task is not available' });
+    }
+
+    // Assign logistics partner to task
     task.logisticsPartnerId = req.user?.userId as any;
     task.status = 'assigned';
     await task.save();
 
-    // Update surplus
+    // Update surplus to show it has a logistics partner assigned
     await Surplus.findByIdAndUpdate(task.surplusId, {
       logisticsPartnerId: req.user?.userId,
-      status: 'in-transit',
     });
 
-    res.json({ success: true, message: 'Task accepted', data: task });
+    res.json({ 
+      success: true, 
+      message: 'Task accepted. Please proceed to pickup location.', 
+      data: task 
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -80,8 +92,12 @@ export const updateTaskStatus = async (req: AuthRequest, res: Response) => {
 
     if (status === 'picked-up') {
       task.actualPickup = new Date();
+      // ONLY NOW change surplus status to in-transit (donation is actually picked up)
+      await Surplus.findByIdAndUpdate(task.surplusId, { status: 'in-transit' });
     } else if (status === 'delivered') {
       task.actualDelivery = new Date();
+      task.status = 'delivered';
+      // Change surplus status to delivered
       await Surplus.findByIdAndUpdate(task.surplusId, { status: 'delivered' });
     }
 
