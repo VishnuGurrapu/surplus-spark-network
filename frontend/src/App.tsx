@@ -11,6 +11,7 @@ import NGODashboard from "./pages/dashboards/NGODashboard";
 import LogisticsDashboard from "./pages/dashboards/LogisticsDashboard";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import NotFound from "./pages/NotFound";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -24,10 +25,38 @@ const App = () => (
           <Route path="/" element={<Landing />} />
           <Route path="/select-role" element={<RoleSelection />} />
           <Route path="/auth/:role" element={<Auth />} />
-          <Route path="/dashboard/donor" element={<DonorDashboard />} />
-          <Route path="/dashboard/ngo" element={<NGODashboard />} />
-          <Route path="/dashboard/logistics" element={<LogisticsDashboard />} />
-          <Route path="/dashboard/admin" element={<AdminDashboard />} />
+          <Route 
+            path="/dashboard/donor" 
+            element={
+              <ProtectedRoute allowedRoles={['donor']}>
+                <DonorDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard/ngo" 
+            element={
+              <ProtectedRoute allowedRoles={['ngo']}>
+                <NGODashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard/logistics" 
+            element={
+              <ProtectedRoute allowedRoles={['logistics']}>
+                <LogisticsDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard/admin" 
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
