@@ -9,6 +9,7 @@ import SeasonalInsights from "@/components/admin/SeasonalInsights";
 import ImpactDashboard from "@/components/admin/ImpactDashboard";
 import SystemLogs from "@/components/admin/SystemLogs";
 import AdminProfile from "@/components/admin/AdminProfile";
+import Advertisements from "@/pages/admin/Advertisements";
 
 const AdminDashboard = () => {
   return (
@@ -23,6 +24,7 @@ const AdminDashboard = () => {
         <Route path="impact" element={<ImpactDashboard />} />
         <Route path="logs" element={<SystemLogs />} />
         <Route path="profile" element={<AdminProfile />} />
+        <Route path="advertisements" element={<Advertisements />} />
       </Routes>
     </DashboardLayout>
   );

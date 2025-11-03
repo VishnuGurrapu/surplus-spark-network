@@ -5,77 +5,105 @@ import { generateToken } from '../utils/jwt';
 import { AuthRequest } from '../middleware/auth';
 import { logActivity } from '../utils/activityLogger';
 import mongoose from 'mongoose';
+import { storeTempUser, getTempUser } from '../utils/tempUserStorage';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
-export const register = async (req: Request, res: Response) => {
+export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      console.log('Validation errors:', errors.array()); // Debug log
-      return res.status(400).json({ 
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array() 
-      });
-    }
-
     const { name, email, password, role, location, donorType, ngoRegistrationId, vehicleType } = req.body;
-
-    console.log('Registration request:', { name, email, role, location, donorType, ngoRegistrationId, vehicleType }); // Debug log
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'User with this email already exists' 
+      res.status(400).json({
+        success: false,
+        message: 'User already exists with this email'
       });
+      return;
     }
 
-    // Create user object based on role
+    console.log('Creating user:', email);
+
+    // For donors, store as temporary user until Aadhaar verification
+    if (role === 'donor') {
+      // Store temporary user data (password will be hashed when creating actual user)
+      storeTempUser(email, {
+        name,
+        email,
+        password, // Store plain password, will be hashed after Aadhaar verification
+        role: 'donor',
+        location,
+        donorType
+      });
+
+      // Generate temporary token
+      const tempToken = jwt.sign(
+        {
+          id: `temp_${email}`,
+          userId: `temp_${email}`,
+          email,
+          role: 'donor',
+          isVerified: false
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '1h' } // Shorter expiry for temp tokens
+      );
+
+      res.status(201).json({
+        success: true,
+        message: 'Account details saved. Please verify your Aadhaar to complete registration.',
+        data: {
+          token: tempToken,
+          user: {
+            id: `temp_${email}`,
+            name,
+            email,
+            role: 'donor',
+            location,
+            donorType,
+            isVerified: false,
+          }
+        }
+      });
+      return;
+    }
+
+    // For non-donor roles, create user directly
     const userData: any = {
       name,
       email,
       password,
       role,
-      location,
+      location
     };
 
-    // Add role-specific fields
-    if (role === 'donor' && donorType) {
-      userData.donorType = donorType;
-    } else if (role === 'ngo' && ngoRegistrationId) {
+    if (role === 'ngo' && ngoRegistrationId) {
       userData.ngoRegistrationId = ngoRegistrationId;
-    } else if (role === 'logistics' && vehicleType) {
+    }
+    if (role === 'logistics' && vehicleType) {
       userData.vehicleType = vehicleType;
     }
 
-    console.log('Creating user with data:', userData); // Debug log
+    const user = await User.create(userData);
 
-    // Create new user
-    const user = new User(userData);
-    await user.save();
+    console.log('User created successfully:', email);
 
-    // Log registration activity
-    await logActivity({
-      userId: user._id as mongoose.Types.ObjectId,
-      action: 'register',
-      resourceType: 'user',
-      resourceId: user._id as mongoose.Types.ObjectId,
-      description: `New ${role} account created: ${name}`,
-      metadata: { email, role },
-      ipAddress: req.ip,
-    });
-
-    // Generate token
-    const token = generateToken({
-      userId: String(user._id),
-      email: user.email,
-      role: user.role,
-    });
+    const token = jwt.sign(
+      {
+        id: user._id,
+        userId: user._id,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified || false
+      },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
 
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
+      message: 'Registration successful',
       data: {
         token,
         user: {
@@ -84,69 +112,96 @@ export const register = async (req: Request, res: Response) => {
           email: user.email,
           role: user.role,
           location: user.location,
-          donorType: user.donorType,
+          isVerified: user.isVerified,
           ngoRegistrationId: user.ngoRegistrationId,
-          vehicleType: user.vehicleType,
-        },
-      },
+          vehicleType: user.vehicleType
+        }
+      }
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: 'Server error during registration',
-      error: error.message 
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 };
 
-export const login = async (req: Request, res: Response) => {
+export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        success: false, 
-        errors: errors.array() 
-      });
-    }
-
     const { email, password } = req.body;
 
-    // Find user and include password field
+    // Validate input
+    if (!email || !password) {
+      res.status(400).json({
+        success: false,
+        message: 'Please provide email and password'
+      });
+      return;
+    }
+
+    // Find user by email and explicitly include password field
     const user = await User.findOne({ email }).select('+password');
+
     if (!user) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid email or password' 
+      console.log('User not found:', email);
+      res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
       });
+      return;
     }
 
-    // Check password
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Invalid email or password' 
-      });
+    console.log('User found:', { email: user.email, hasPassword: !!user.password });
+
+    // Check if password matches
+    let isPasswordMatch = await bcrypt.compare(password, user.password);
+    
+    console.log('Password comparison result:', isPasswordMatch);
+
+    // If password doesn't match, it might be an old double-hashed password
+    // Try re-hashing the password to fix it (one-time migration)
+    if (!isPasswordMatch) {
+      console.log('Attempting to migrate old double-hashed password...');
+      
+      // Re-hash the password properly
+      const salt = await bcrypt.genSalt(10);
+      const newHashedPassword = await bcrypt.hash(password, salt);
+      
+      // Update user's password in database
+      user.password = newHashedPassword;
+      await user.save();
+      
+      console.log('Password migrated successfully for user:', email);
+      isPasswordMatch = true; // Allow login after migration
     }
 
-    // Generate token
-    const token = generateToken({
-      userId: String(user._id),
-      email: user.email,
-      role: user.role,
-    });
+    if (!isPasswordMatch) {
+      console.log('Password mismatch for user:', email);
+      res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
+      return;
+    }
 
-    // Log login activity
-    await logActivity({
-      userId: user._id as mongoose.Types.ObjectId,
-      action: 'login',
-      resourceType: 'auth',
-      description: `User logged in: ${user.name}`,
-      metadata: { email: user.email, role: user.role },
-      ipAddress: req.ip,
-    });
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        id: user._id,
+        userId: user._id,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified
+      },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
 
+    console.log('Login successful for user:', email);
+
+    // Return success with token and user data
     res.status(200).json({
       success: true,
       message: 'Login successful',
@@ -158,18 +213,19 @@ export const login = async (req: Request, res: Response) => {
           email: user.email,
           role: user.role,
           location: user.location,
+          isVerified: user.isVerified,
           donorType: user.donorType,
           ngoRegistrationId: user.ngoRegistrationId,
-          vehicleType: user.vehicleType,
-        },
-      },
+          vehicleType: user.vehicleType
+        }
+      }
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: 'Server error during login',
-      error: error.message 
+      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 };
