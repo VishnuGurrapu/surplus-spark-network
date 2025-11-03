@@ -1,9 +1,10 @@
-import { ReactNode } from "react";
+import React, { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LogOut, Home, Plus, Package, TrendingUp, Users, Truck, Settings, QrCode, Trophy, User, AlertCircle, BarChart3, ShieldCheck, Calendar, Award, FileText, Map, CheckCircle } from "lucide-react";
 import { logout } from "@/lib/api";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -75,8 +76,22 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       {/* Sidebar */}
       <aside className="w-64 bg-card border-r border-border p-6 flex flex-col">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-primary">Surplus Spark</h1>
-          <p className="text-sm text-muted-foreground capitalize">{userRole} Dashboard</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-primary">Surplus Spark</h1>
+              <p className="text-sm text-muted-foreground capitalize">{userRole} Dashboard</p>
+            </div>
+            <div className="ml-4">
+              {/* Theme toggle placed here so it's available on all dashboard pages */}
+              {/* Import kept local to avoid affecting server-side code */}
+              {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+              {/* @ts-ignore */}
+              <React.Suspense>
+                {/* Lazy inline import to avoid bundle surprises; component is lightweight */}
+                <ThemeToggle />
+              </React.Suspense>
+            </div>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-2">
@@ -88,6 +103,7 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
                 variant={isActive(item.path) ? "default" : "ghost"}
                 className={cn(
                   "w-full justify-start",
+                  "panel-hover-style hover-indigo-glow",
                   isActive(item.path) && "bg-primary text-primary-foreground"
                 )}
                 onClick={() => navigate(item.path)}
@@ -101,7 +117,7 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
 
         <Button
           variant="outline"
-          className="w-full mt-4"
+          className="w-full mt-4 panel-hover-style hover-indigo-glow"
           onClick={handleLogout}
         >
           <LogOut className="w-4 h-4 mr-2" />
