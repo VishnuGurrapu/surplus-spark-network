@@ -1295,10 +1295,362 @@ export const trackAdvertisementClick = async (id: string) => {
   }
 };
 
-export const generateImpactCard = async (donationId: string) => {
-  return apiRequest(`/donor/impact-card/${donationId}`, { method: 'GET' });
+// ==================== Complaints API ====================
+
+export interface Complaint {
+  _id: string;
+  userId: string;
+  userRole: 'donor' | 'ngo' | 'logistics' | 'admin';
+  title: string;
+  description: string;
+  category: 'service' | 'delivery' | 'quality' | 'behavior' | 'technical' | 'other';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  status: 'pending' | 'in-progress' | 'resolved' | 'closed';
+  relatedTo?: {
+    type: 'surplus' | 'request' | 'task' | 'user';
+    id: string;
+  };
+  proofUrls: string[];
+  adminResponse?: string;
+  adminId?: string;
+  resolvedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const createComplaint = async (complaintData: any) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/complaints`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(complaintData),
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during create complaint:', error);
+    throw error;
+  }
 };
 
-export const getPublicDonorProfile = async (donorId: string) => {
-  return apiRequest(`/donor/public-profile/${donorId}`, { method: 'GET' });
+export const getUserComplaints = async (filters?: any) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const queryParams = new URLSearchParams(filters).toString();
+    const url = `${API_BASE_URL}/complaints/my-complaints${queryParams ? `?${queryParams}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during get complaints:', error);
+    throw error;
+  }
+};
+
+export const getAllComplaints = async (filters?: any) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const queryParams = new URLSearchParams(filters).toString();
+    const url = `${API_BASE_URL}/complaints/all${queryParams ? `?${queryParams}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during get all complaints:', error);
+    throw error;
+  }
+};
+
+export const updateComplaintStatus = async (id: string, data: any) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/complaints/${id}/status`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during update complaint:', error);
+    throw error;
+  }
+};
+
+export const getComplaintStats = async () => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/complaints/stats`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during get complaint stats:', error);
+    throw error;
+  }
+};
+
+// ==================== Feedback API ====================
+
+export interface Feedback {
+  _id: string;
+  userId: string;
+  userRole: 'donor' | 'ngo' | 'logistics' | 'admin';
+  type: 'general' | 'feature-request' | 'improvement' | 'appreciation' | 'bug-report';
+  rating: number;
+  title: string;
+  description: string;
+  relatedTo?: {
+    type: 'surplus' | 'request' | 'task' | 'delivery';
+    id: string;
+  };
+  proofUrls: string[];
+  isPublic: boolean;
+  helpful: number;
+  adminReviewed: boolean;
+  adminNotes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const createFeedback = async (feedbackData: any) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/feedback`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(feedbackData),
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during create feedback:', error);
+    throw error;
+  }
+};
+
+export const getUserFeedback = async (filters?: any) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const queryParams = new URLSearchParams(filters).toString();
+    const url = `${API_BASE_URL}/feedback/my-feedback${queryParams ? `?${queryParams}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during get feedback:', error);
+    throw error;
+  }
+};
+
+export const getAllFeedback = async (filters?: any) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const queryParams = new URLSearchParams(filters).toString();
+    const url = `${API_BASE_URL}/feedback/all${queryParams ? `?${queryParams}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during get all feedback:', error);
+    throw error;
+  }
+};
+
+export const getPublicFeedback = async (minRating?: number) => {
+  try {
+    const queryParams = minRating ? `?minRating=${minRating}` : '';
+    const url = `${API_BASE_URL}/feedback/public${queryParams}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during get public feedback:', error);
+    throw error;
+  }
+};
+
+export const markFeedbackHelpful = async (id: string) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/feedback/${id}/helpful`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during mark helpful:', error);
+    throw error;
+  }
+};
+
+export const reviewFeedback = async (id: string, data: any) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/feedback/${id}/review`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during review feedback:', error);
+    throw error;
+  }
+};
+
+export const getFeedbackStats = async () => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/feedback/stats`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during get feedback stats:', error);
+    throw error;
+  }
+};
+
+// ==================== Donation Feedback API ====================
+
+export const submitDonationFeedback = async (surplusId: string, feedbackData: any) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/ngo/surplus/${surplusId}/feedback`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(feedbackData),
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during submit donation feedback:', error);
+    throw error;
+  }
 };
