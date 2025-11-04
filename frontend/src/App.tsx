@@ -15,6 +15,7 @@ import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PublicVolunteerProfile from './pages/PublicVolunteerProfile';
+import TaxBenefitsPage from './pages/donor/TaxBenefitsPage';
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,14 @@ const App = () => (
             element={
               <ProtectedRoute allowedRoles={['donor']}>
                 <DonorDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard/donor/tax-benefits" 
+            element={
+              <ProtectedRoute allowedRoles={['donor']}>
+                <TaxBenefitsPage />
               </ProtectedRoute>
             } 
           />

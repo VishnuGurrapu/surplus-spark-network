@@ -12,6 +12,11 @@ import {
   rejectSurplusRequest,
   generateImpactCard,
   getPublicDonorProfile,
+  requestTaxReceipt,
+  getTaxReceipts,
+  get80GEligibleNGOs,
+  verifyPAN,
+  downloadTaxReceipt,
 } from '../controllers/donorController';
 import { getDonorLeaderboard } from '../controllers/leaderboardController';
 
@@ -29,16 +34,26 @@ const surplusValidation = [
   body('location.address').trim().notEmpty().withMessage('Address is required'),
 ];
 
+// ==================== SURPLUS ROUTES ====================
 router.post('/surplus', surplusValidation, requireVerification, createSurplus);
 router.get('/surplus', getDonorSurplus);
 router.get('/surplus/:id', getSurplusById);
 router.patch('/surplus/:id', updateSurplus);
+router.post('/surplus/:id/accept', requireVerification, acceptSurplusRequest);
+router.post('/surplus/:id/reject', requireVerification, rejectSurplusRequest);
+
+// ==================== TAX RECEIPT ROUTES (MUST COME FIRST) ====================
+router.get('/tax-receipts', getTaxReceipts);
+router.get('/tax-receipt/download/:receiptId', downloadTaxReceipt);
+router.post('/tax-receipt/:surplusId', requireVerification, requestTaxReceipt);
+
+// ==================== OTHER ROUTES ====================
 router.get('/impact', getDonorImpact);
 router.get('/tracking/:id', trackDonation);
 router.get('/leaderboard', getDonorLeaderboard);
-router.post('/surplus/:id/accept', requireVerification, acceptSurplusRequest);
-router.post('/surplus/:id/reject', requireVerification, rejectSurplusRequest);
 router.get('/impact-card/:id', generateImpactCard);
 router.get('/public-profile/:donorId', getPublicDonorProfile);
+router.get('/80g-ngos', get80GEligibleNGOs);
+router.post('/verify-pan', verifyPAN);
 
 export default router;

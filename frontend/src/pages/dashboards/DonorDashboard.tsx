@@ -11,6 +11,7 @@ import Leaderboard from "@/components/donor/Leaderboard";
 import Profile from "@/components/donor/Profile";
 import NearbyNGOFinder from "@/components/donor/NearbyNGOFinder";
 import SupportCenter from "@/components/ui/SupportCenter";
+import TaxBenefitsPage from "@/pages/donor/TaxBenefitsPage";
 
 const DonorDashboard = () => {
   return (
@@ -25,6 +26,7 @@ const DonorDashboard = () => {
         <Route path="leaderboard" element={<Leaderboard />} />
         <Route path="support" element={<SupportCenter />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="tax-benefits" element={<TaxBenefitsPage />} />
       </Routes>
     </DashboardLayout>
   );

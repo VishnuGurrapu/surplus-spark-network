@@ -1,9 +1,5 @@
 import { Button } from "@/components/ui/button";
-<<<<<<< Updated upstream
 import { ArrowRight, Heart, TrendingUp, Users, Sparkles, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin, Youtube, Star, Shield, Award } from "lucide-react";
-=======
-import { ArrowRight, Heart, TrendingUp, Users, Sparkles, Award } from "lucide-react";
->>>>>>> Stashed changes
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import SponsorBanner from "@/components/ui/SponsorBanner";

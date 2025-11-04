@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { getUser, getDonorImpact, getDonorSurplus } from '@/lib/api';
 import { Chatbot } from '@/components/Chatbot';
+import { TaxBenefits } from '@/components/TaxBenefits';
 import { 
   Package, 
   Users, 
@@ -19,6 +20,7 @@ const DonorDashboard = () => {
   const user = getUser();
   const [impact, setImpact] = useState<any>(null);
   const [recentDonations, setRecentDonations] = useState<any[]>([]);
+  const [deliveredDonations, setDeliveredDonations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,9 +31,10 @@ const DonorDashboard = () => {
     try {
       setLoading(true);
       
-      const [impactResponse, surplusResponse] = await Promise.all([
+      const [impactResponse, surplusResponse, deliveredResponse] = await Promise.all([
         getDonorImpact(),
-        getDonorSurplus({ status: 'available' })
+        getDonorSurplus({ status: 'available' }),
+        getDonorSurplus({ status: 'delivered' })
       ]);
 
       if (impactResponse.success) {
@@ -40,6 +43,10 @@ const DonorDashboard = () => {
 
       if (surplusResponse.success) {
         setRecentDonations(surplusResponse.data?.slice(0, 5) || []);
+      }
+
+      if (deliveredResponse.success) {
+        setDeliveredDonations(deliveredResponse.data || []);
       }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
@@ -184,6 +191,9 @@ const DonorDashboard = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Tax Benefits Section */}
+      <TaxBenefits deliveredDonations={deliveredDonations} />
 
       {/* Quick Actions */}
       <Card>

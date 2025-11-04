@@ -1769,3 +1769,61 @@ export const generateImpactCard = async (donationId: string) => {
 export const getPublicDonorProfile = async (donorId: string) => {
   return apiRequest(`/donor/public-profile/${donorId}`, { method: 'GET' });
 };
+
+export const getTaxReceipts = async () => {
+  return apiRequest('/donor/tax-receipts', { method: 'GET' });
+};
+
+export const requestTaxReceipt = async (surplusId: string, data: { donorPAN: string; donorAddress?: string }) => {
+  return apiRequest(`/donor/tax-receipt/${surplusId}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const get80GEligibleNGOs = async () => {
+  return apiRequest('/donor/80g-ngos', { method: 'GET' });
+};
+
+export const verifyPAN = async (pan: string) => {
+  return apiRequest('/donor/verify-pan', {
+    method: 'POST',
+    body: JSON.stringify({ pan }),
+  });
+};
+
+export const downloadTaxReceipt = async (receiptId: string) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/donor/tax-receipt/download/${receiptId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to download receipt');
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `80G-Tax-Receipt-${receiptId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Download error:', error);
+    return { success: false, message: 'Failed to download receipt' };
+  }
+};

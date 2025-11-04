@@ -5,6 +5,11 @@ import Task from '../models/Task';
 import { validationResult } from 'express-validator';
 import Notification from '../models/Notification';
 import User from '../models/User';
+import NGO80G from '../models/NGO80G';
+import TaxReceipt from '../models/TaxReceipt';
+import { generateTaxReceipt, getFinancialYear, generateReceiptNumber } from '../utils/pdfGenerator';
+import path from 'path';
+import fs from 'fs';
 
 export const createSurplus = async (req: AuthRequest, res: Response) => {
   try {
@@ -373,5 +378,233 @@ export const getPublicDonorProfile = async (req: AuthRequest, res: Response) => 
     });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const requestTaxReceipt = async (req: AuthRequest, res: Response) => {
+  try {
+    const { surplusId } = req.params;
+    const { donorPAN, donorAddress } = req.body;
+
+    // Validate PAN format (basic)
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    if (!panRegex.test(donorPAN)) {
+      return res.status(400).json({ success: false, message: 'Invalid PAN format' });
+    }
+
+    const surplus = await Surplus.findOne({
+      _id: surplusId,
+      donorId: req.user?.userId,
+      status: 'delivered',
+    }).populate('claimedBy');
+
+    if (!surplus) {
+      return res.status(404).json({ success: false, message: 'Delivered donation not found' });
+    }
+
+    // Check if NGO is 80G verified
+    let ngo80G = await NGO80G.findOne({ 
+      ngoId: surplus.claimedBy,
+      has80G: true,
+      certificateValidUntil: { $gte: new Date() }
+    });
+
+    // Auto-create 80G record for testing if in development mode
+    if (!ngo80G && process.env.NODE_ENV === 'development') {
+      const ngoUser = await User.findById(surplus.claimedBy);
+      if (ngoUser) {
+        ngo80G = new NGO80G({
+          ngoId: surplus.claimedBy,
+          name: ngoUser.name,
+          pan: `${ngoUser.name.substring(0, 5).toUpperCase().replace(/[^A-Z]/g, 'A')}${Math.floor(1000 + Math.random() * 9000)}F`,
+          has80G: true,
+          registrationNo: `80G-DEV-${Date.now()}`,
+          certificateValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000 * 3),
+          contactEmail: ngoUser.email,
+          address: ngoUser.location || 'India',
+          verifiedAt: new Date(),
+        });
+        await ngo80G.save();
+        console.log(`✅ Auto-created 80G record for ${ngoUser.name} (Development mode)`);
+      }
+    }
+
+    if (!ngo80G) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'This NGO is not eligible for 80G tax benefits. Please contact support to verify the NGO.' 
+      });
+    }
+
+    // Check if receipt already exists
+    const existingReceipt = await TaxReceipt.findOne({ surplusId });
+    if (existingReceipt) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Tax receipt already generated for this donation',
+        data: existingReceipt
+      });
+    }
+
+    const donor = await User.findById(req.user?.userId);
+    const receiptNumber = generateReceiptNumber();
+    const financialYear = getFinancialYear();
+
+    // Estimate donation value (simple calculation)
+    let estimatedValue = surplus.quantity * 100; // ₹100 per unit as base
+    if (surplus.category === 'food') estimatedValue = surplus.quantity * 50;
+    if (surplus.category === 'medical') estimatedValue = surplus.quantity * 200;
+
+    // Generate PDF
+    const pdfPath = await generateTaxReceipt({
+      receiptNumber,
+      donorName: donor?.name || 'Anonymous',
+      donorPAN,
+      donorAddress,
+      ngoName: ngo80G.name,
+      ngo80GRegNo: ngo80G.registrationNo,
+      donationDescription: `${surplus.quantity} ${surplus.unit} of ${surplus.title}`,
+      donationValue: estimatedValue,
+      issueDate: new Date(),
+      financialYear,
+    });
+
+    // Save receipt record with correct URL path
+    const receipt = new TaxReceipt({
+      donorId: req.user?.userId,
+      ngoId: surplus.claimedBy,
+      surplusId,
+      donorName: donor?.name,
+      donorPAN,
+      donorEmail: donor?.email,
+      donorAddress,
+      ngoName: ngo80G.name,
+      ngo80GRegNo: ngo80G.registrationNo,
+      donationDescription: `${surplus.quantity} ${surplus.unit} of ${surplus.title}`,
+      donationValue: estimatedValue,
+      receiptNumber,
+      financialYear,
+      pdfUrl: `receipts/receipt-${receiptNumber}.pdf`, // Fixed: removed /uploads prefix
+    });
+
+    await receipt.save();
+
+    res.json({
+      success: true,
+      message: 'Tax receipt generated successfully',
+      data: receipt,
+    });
+  } catch (error: any) {
+    console.error('Tax receipt error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getTaxReceipts = async (req: AuthRequest, res: Response) => {
+  try {
+    const receipts = await TaxReceipt.find({ donorId: req.user?.userId })
+      .populate('ngoId', 'name')
+      .populate('surplusId', 'title category')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, data: receipts });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const get80GEligibleNGOs = async (req: AuthRequest, res: Response) => {
+  try {
+    const eligibleNGOs = await NGO80G.find({
+      has80G: true,
+      certificateValidUntil: { $gte: new Date() }
+    }).populate('ngoId', 'name email location');
+
+    res.json({ success: true, data: eligibleNGOs });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const verifyPAN = async (req: AuthRequest, res: Response) => {
+  try {
+    const { pan } = req.body;
+
+    // Basic PAN validation
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    if (!panRegex.test(pan)) {
+      return res.json({ success: false, valid: false, message: 'Invalid PAN format' });
+    }
+
+    // Fetch user details
+    const user = await User.findById(req.user?.userId);
+    
+    // Mock verification (in production, integrate with Income Tax API)
+    const isValid = true; // Simulate API call
+    const holderName = user?.name || 'Verified User';
+
+    res.json({
+      success: true,
+      valid: isValid,
+      holderName,
+      message: 'PAN verified successfully (Demo)',
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const downloadTaxReceipt = async (req: AuthRequest, res: Response) => {
+  try {
+    const { receiptId } = req.params;
+
+    console.log(`📥 Download request for receipt: ${receiptId} by user: ${req.user?.userId}`);
+
+    const receipt = await TaxReceipt.findOne({
+      _id: receiptId,
+      donorId: req.user?.userId,
+    });
+
+    if (!receipt) {
+      console.log(`❌ Receipt not found: ${receiptId}`);
+      return res.status(404).json({ success: false, message: 'Receipt not found' });
+    }
+
+    if (!receipt.pdfUrl) {
+      console.log(`❌ PDF URL not found for receipt: ${receiptId}`);
+      return res.status(404).json({ success: false, message: 'PDF URL not found' });
+    }
+
+    const filePath = path.resolve(__dirname, '../../uploads', receipt.pdfUrl);
+    console.log(`📂 Looking for PDF at: ${filePath}`);
+
+    if (!fs.existsSync(filePath)) {
+      console.log(`❌ PDF file not found at: ${filePath}`);
+      return res.status(404).json({ success: false, message: 'PDF file not found on server' });
+    }
+
+    console.log(`✅ Sending PDF file: ${filePath}`);
+    
+    // Use res.sendFile with absolute path
+    res.sendFile(filePath, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="80G-Receipt-${receipt.receiptNumber}.pdf"`,
+      }
+    }, (err) => {
+      if (err) {
+        console.error('❌ Error sending file:', err);
+        if (!res.headersSent) {
+          res.status(500).json({ success: false, message: 'Error downloading file' });
+        }
+      } else {
+        console.log(`✅ File sent successfully: ${receipt.receiptNumber}`);
+      }
+    });
+  } catch (error: any) {
+    console.error('❌ Download receipt error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: error.message });
+    }
   }
 };

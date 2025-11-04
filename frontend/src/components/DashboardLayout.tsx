@@ -2,7 +2,7 @@ import { ReactNode, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LogOut, Home, Plus, Package, TrendingUp, Users, Truck, Settings, QrCode, Trophy, User, AlertCircle, BarChart3, ShieldCheck, Calendar, Award, FileText, Map, CheckCircle, Bell, Megaphone, MessageSquare, AlertTriangle, Heart } from "lucide-react";
+import { LogOut, Home, Plus, Package, TrendingUp, Users, Truck, Settings, QrCode, Trophy, User, AlertCircle, BarChart3, ShieldCheck, Calendar, Award, FileText, Map, CheckCircle, Bell, Megaphone, MessageSquare, AlertTriangle, Heart, Receipt } from "lucide-react";
 import { logout, getNotifications, markNotificationAsRead } from "@/lib/api";
 import {
   DropdownMenu,
@@ -71,6 +71,7 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       { path: "/dashboard/donor/donations", label: "My Donations", icon: Package },
       { path: "/dashboard/donor/track", label: "Track Donation", icon: QrCode },
       { path: "/dashboard/donor/find-ngos", label: "Find NGOs", icon: Map },
+      { path: "/dashboard/donor/tax-benefits", label: "Tax Benefits", icon: Receipt },
       { path: "/dashboard/donor/impact", label: "Impact", icon: TrendingUp },
       { path: "/dashboard/donor/leaderboard", label: "Leaderboard", icon: Trophy },
       { path: "/dashboard/donor/support", label: "Support Center", icon: MessageSquare },
