@@ -1,5 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-console.log('API Base URL:', API_BASE_URL); // Add this temporarily for debugging
+console.log('API Base URL:', API_BASE_URL);
 
 export interface RegisterData {
   name: string;
@@ -668,7 +668,7 @@ export const markRequestReceived = async (requestId: string): Promise<ApiRespons
 export interface Notification {
   _id: string;
   userId: string;
-  type: 'surplus_claimed' | 'request_received' | 'delivery_update' | 'task_assigned' | 'general';
+  type: 'surplus_claimed' | 'request_received' | 'delivery_update' | 'task_assigned' | 'volunteer_pickup' | 'general';
   title: string;
   message: string;
   data?: any;
@@ -1301,4 +1301,111 @@ export const generateImpactCard = async (donationId: string) => {
 
 export const getPublicDonorProfile = async (donorId: string) => {
   return apiRequest(`/donor/public-profile/${donorId}`, { method: 'GET' });
+};
+
+export const volunteerPickupTask = async (taskId: string) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/logistics/volunteer/pickup/${taskId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+    return response.json();
+  } catch (error) {
+    console.error('Network error during volunteer pickup:', error);
+    throw error;
+  }
+};
+
+export const completeVolunteerDelivery = async (taskId: string) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/logistics/volunteer/complete/${taskId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+    return response.json();
+  } catch (error) {
+    console.error('Network error during volunteer delivery completion:', error);
+    throw error;
+  }
+};
+
+export const getVolunteerStats = async () => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/logistics/volunteer/stats`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch volunteer stats:', error);
+    throw error;
+  }
+};
+
+export const getLeaderboard = async (period: string = 'all') => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/logistics/volunteer/leaderboard?period=${period}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch leaderboard:', error);
+    throw error;
+  }
+};
+
+export const getPublicProfile = async (userId: string) => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/logistics/volunteer/profile/${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+    return response.json();
+  } catch (error) {
+    console.error('Network error during fetch public profile:', error);
+    throw error;
+  }
 };

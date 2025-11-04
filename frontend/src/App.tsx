@@ -13,6 +13,7 @@ import LogisticsDashboard from "./pages/dashboards/LogisticsDashboard";
 import AdminDashboard from "./pages/dashboards/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import PublicVolunteerProfile from './pages/PublicVolunteerProfile';
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ const App = () => (
               </ProtectedRoute>
             } 
           />
+          <Route path="/volunteer/profile/:userId" element={<PublicVolunteerProfile />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

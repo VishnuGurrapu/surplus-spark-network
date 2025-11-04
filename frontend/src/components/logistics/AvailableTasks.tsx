@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { MapPin, Package, Clock, Loader2, AlertCircle, Truck, User, Route as RouteIcon, Navigation } from "lucide-react";
-import { getAvailableTasks, acceptTask, Task } from "@/lib/api";
+import { MapPin, Package, Clock, Loader2, AlertCircle, Truck, User, Route as RouteIcon, Navigation, Heart } from "lucide-react";
+import { getAvailableTasks, acceptTask, volunteerPickupTask, Task } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { loadGoogleMapsScript, createMap } from "@/lib/googleMaps";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
@@ -17,6 +17,7 @@ const AvailableTasks = () => {
   const [accepting, setAccepting] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [volunteerAccepting, setVolunteerAccepting] = useState<string | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
@@ -176,6 +177,36 @@ const AvailableTasks = () => {
       });
     } finally {
       setAccepting(null);
+    }
+  };
+
+  const handleVolunteerPickup = async (taskId: string) => {
+    try {
+      setVolunteerAccepting(taskId);
+      const response = await volunteerPickupTask(taskId);
+
+      if (response.success) {
+        toast({
+          title: "Thank you, Volunteer! 🎉",
+          description: "You've accepted this delivery. Your contribution makes a difference!",
+        });
+        fetchTasks();
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to accept volunteer task",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      console.error('Volunteer pickup error:', err);
+      toast({
+        title: "Error",
+        description: err.message || "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setVolunteerAccepting(null);
     }
   };
 
@@ -341,7 +372,7 @@ const AvailableTasks = () => {
                     <Button
                       className="w-full"
                       onClick={() => handleAcceptTask(task._id)}
-                      disabled={accepting === task._id}
+                      disabled={accepting === task._id || volunteerAccepting === task._id}
                     >
                       {accepting === task._id ? (
                         <>
@@ -355,6 +386,26 @@ const AvailableTasks = () => {
                         </>
                       )}
                     </Button>
+                    
+                    <Button
+                      variant="secondary"
+                      className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:from-pink-600 hover:to-rose-600"
+                      onClick={() => handleVolunteerPickup(task._id)}
+                      disabled={accepting === task._id || volunteerAccepting === task._id}
+                    >
+                      {volunteerAccepting === task._id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Accepting...
+                        </>
+                      ) : (
+                        <>
+                          <Heart className="w-4 h-4 mr-2" />
+                          Volunteer Pickup
+                        </>
+                      )}
+                    </Button>
+                    
                     <Button
                       variant="outline"
                       className="w-full"

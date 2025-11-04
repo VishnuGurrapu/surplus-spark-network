@@ -24,6 +24,17 @@ export interface IUser extends Document {
   // Logistics specific fields
   vehicleType?: 'bike' | 'car' | 'van' | 'truck';
   
+  // Volunteer stats
+  volunteerStats?: {
+    totalDeliveries: number;
+    activeDeliveries: number;
+    peopleHelped: number;
+    points: number;
+    badges: string[];
+    currentStreak: number;
+    lastDeliveryDate?: Date;
+  };
+  
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -96,6 +107,28 @@ const userSchema = new Schema<IUser>(
       type: String,
       enum: ['bike', 'car', 'van', 'truck'],
       required: false,
+    },
+
+    // Volunteer stats
+    volunteerStats: {
+      type: {
+        totalDeliveries: { type: Number, default: 0 },
+        activeDeliveries: { type: Number, default: 0 },
+        peopleHelped: { type: Number, default: 0 },
+        points: { type: Number, default: 0 },
+        badges: [{ type: String }],
+        currentStreak: { type: Number, default: 0 },
+        lastDeliveryDate: { type: Date },
+      },
+      required: false,
+      default: () => ({
+        totalDeliveries: 0,
+        activeDeliveries: 0,
+        peopleHelped: 0,
+        points: 0,
+        badges: [],
+        currentStreak: 0,
+      }),
     },
   },
   {

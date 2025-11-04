@@ -27,6 +27,7 @@ export interface ITask extends Document {
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
+  isVolunteerPickup?: boolean;
 }
 
 const taskSchema = new Schema<ITask>(
@@ -80,6 +81,10 @@ const taskSchema = new Schema<ITask>(
     scheduledDelivery: Date,
     actualDelivery: Date,
     notes: String,
+    isVolunteerPickup: { 
+      type: Boolean, 
+      default: false 
+    },
   },
   {
     timestamps: true,
