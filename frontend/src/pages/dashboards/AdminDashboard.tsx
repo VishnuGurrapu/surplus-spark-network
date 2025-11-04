@@ -10,6 +10,7 @@ import ImpactDashboard from "@/components/admin/ImpactDashboard";
 import SystemLogs from "@/components/admin/SystemLogs";
 import AdminProfile from "@/components/admin/AdminProfile";
 import Advertisements from "@/pages/admin/Advertisements";
+import ComplaintsManagement from "@/components/admin/ComplaintsManagement";
 
 const AdminDashboard = () => {
   return (
@@ -19,6 +20,7 @@ const AdminDashboard = () => {
         <Route path="analytics" element={<Analytics />} />
         <Route path="users" element={<ManageUsers />} />
         <Route path="verification" element={<VerificationCenter />} />
+        <Route path="complaints" element={<ComplaintsManagement />} />
         <Route path="forecasting" element={<Forecasting />} />
         <Route path="seasonal" element={<SeasonalInsights />} />
         <Route path="impact" element={<ImpactDashboard />} />

@@ -1,13 +1,89 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Package, TrendingUp, Calendar } from "lucide-react";
+import { Users, Package, TrendingUp, Calendar, Loader2, AlertCircle } from "lucide-react";
+import { getNGOImpact } from "@/lib/api";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+interface MonthlyData {
+  month: string;
+  year: number;
+  count: number;
+  quantity: number;
+}
+
+interface ImpactData {
+  totalRequests: number;
+  fulfilledRequests: number;
+  receivedItems: number;
+  totalQuantity: number;
+  estimatedPeopleServed: number;
+  monthlyDistribution: MonthlyData[];
+}
 
 const ImpactReports = () => {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [impactData, setImpactData] = useState<ImpactData | null>(null);
+
+  useEffect(() => {
+    fetchImpactData();
+  }, []);
+
+  const fetchImpactData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getNGOImpact();
+      
+      if (response.success && response.data) {
+        setImpactData(response.data);
+      } else {
+        setError(response.message || "Failed to fetch impact data");
+      }
+    } catch (err: any) {
+      console.error('Fetch impact error:', err);
+      setError(err.message || "An error occurred while fetching impact data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading impact data...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (!impactData) {
+    return (
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>No impact data available</AlertDescription>
+      </Alert>
+    );
+  }
+
   const stats = [
-    { label: "Total Items Received", value: "85", icon: Package, color: "text-primary" },
-    { label: "People Served", value: "450", icon: Users, color: "text-success" },
-    { label: "Active Requests", value: "12", icon: TrendingUp, color: "text-secondary" },
-    { label: "Days Active", value: "180", icon: Calendar, color: "text-warning" },
+    { label: "Total Items Received", value: impactData.receivedItems.toString(), icon: Package, color: "text-primary" },
+    { label: "People Served", value: impactData.estimatedPeopleServed.toString(), icon: Users, color: "text-success" },
+    { label: "Active Requests", value: (impactData.totalRequests - impactData.fulfilledRequests).toString(), icon: TrendingUp, color: "text-secondary" },
+    { label: "Fulfilled Requests", value: impactData.fulfilledRequests.toString(), icon: Calendar, color: "text-warning" },
   ];
+
+  // Calculate max value for chart scaling
+  const maxCount = Math.max(...impactData.monthlyDistribution.map(d => d.count), 1);
 
   return (
     <div className="space-y-6">
@@ -38,19 +114,41 @@ const ImpactReports = () => {
           <CardDescription>Items received over the last 6 months</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-64 flex items-end justify-between gap-2">
-            {[30, 45, 55, 70, 60, 85].map((height, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div
-                  className="w-full bg-gradient-to-t from-primary to-secondary rounded-t-lg transition-all hover:opacity-80"
-                  style={{ height: `${height}%` }}
-                />
-                <span className="text-xs text-muted-foreground">
-                  {["Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][i]}
-                </span>
-              </div>
-            ))}
-          </div>
+          {impactData.monthlyDistribution.length === 0 ? (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              <p>No distribution data available yet</p>
+            </div>
+          ) : (
+            <div className="h-64 flex items-end justify-between gap-2">
+              {impactData.monthlyDistribution.map((data, i) => {
+                const heightPercentage = maxCount > 0 ? (data.count / maxCount) * 100 : 0;
+                const displayHeight = Math.max(heightPercentage, 5); // Minimum 5% height for visibility
+                
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
+                    <div className="relative w-full">
+                      <div
+                        className="w-full bg-gradient-to-t from-primary to-secondary rounded-t-lg transition-all hover:opacity-80 cursor-pointer"
+                        style={{ height: `${displayHeight * 2.5}px` }}
+                        title={`${data.count} items (${data.quantity} total quantity)`}
+                      />
+                      {data.count > 0 && (
+                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                          {data.count} items
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground font-medium">
+                      {data.month}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {data.count}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 

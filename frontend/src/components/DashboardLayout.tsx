@@ -2,7 +2,7 @@ import { ReactNode, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LogOut, Home, Plus, Package, TrendingUp, Users, Truck, Settings, QrCode, Trophy, User, AlertCircle, BarChart3, ShieldCheck, Calendar, Award, FileText, Map, CheckCircle, Bell, Megaphone } from "lucide-react";
+import { LogOut, Home, Plus, Package, TrendingUp, Users, Truck, Settings, QrCode, Trophy, User, AlertCircle, BarChart3, ShieldCheck, Calendar, Award, FileText, Map, CheckCircle, Bell, Megaphone, MessageSquare, AlertTriangle, Heart } from "lucide-react";
 import { logout, getNotifications, markNotificationAsRead } from "@/lib/api";
 import {
   DropdownMenu,
@@ -70,8 +70,10 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       { path: "/dashboard/donor/add-surplus", label: "Add Surplus", icon: Plus },
       { path: "/dashboard/donor/donations", label: "My Donations", icon: Package },
       { path: "/dashboard/donor/track", label: "Track Donation", icon: QrCode },
+      { path: "/dashboard/donor/find-ngos", label: "Find NGOs", icon: Map },
       { path: "/dashboard/donor/impact", label: "Impact", icon: TrendingUp },
       { path: "/dashboard/donor/leaderboard", label: "Leaderboard", icon: Trophy },
+      { path: "/dashboard/donor/support", label: "Support Center", icon: MessageSquare },
       { path: "/dashboard/donor/profile", label: "Profile", icon: User },
     ],
     ngo: [
@@ -80,9 +82,12 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       { path: "/dashboard/ngo/request", label: "Request Items", icon: Plus },
       { path: "/dashboard/ngo/requests", label: "My Requests", icon: Package },
       { path: "/dashboard/ngo/track-requests", label: "Track Requests", icon: QrCode },
+      { path: "/dashboard/ngo/find-partners", label: "Find Partners", icon: Map },
       { path: "/dashboard/ngo/urgent", label: "Urgent Needs", icon: AlertCircle },
       { path: "/dashboard/ngo/impact", label: "Impact", icon: TrendingUp },
       { path: "/dashboard/ngo/leaderboard", label: "Leaderboard", icon: Trophy },
+      { path: "/dashboard/ngo/give-feedback", label: "Give Feedback", icon: Heart },
+      { path: "/dashboard/ngo/support", label: "Support Center", icon: MessageSquare },
       { path: "/dashboard/ngo/profile", label: "Profile", icon: User },
     ],
     logistics: [
@@ -90,8 +95,8 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       { path: "/dashboard/logistics/tasks", label: "Available Tasks", icon: Package },
       { path: "/dashboard/logistics/active", label: "Active Deliveries", icon: Truck },
       { path: "/dashboard/logistics/completed", label: "Completed", icon: CheckCircle },
-      { path: "/dashboard/logistics/map", label: "Route Map", icon: Map },
       { path: "/dashboard/logistics/performance", label: "Performance", icon: TrendingUp },
+      { path: "/dashboard/logistics/support", label: "Support Center", icon: MessageSquare },
       { path: "/dashboard/logistics/profile", label: "Profile", icon: User },
     ],
     admin: [
@@ -100,6 +105,7 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       { path: "/dashboard/admin/users", label: "Manage Users", icon: Users },
       { path: "/dashboard/admin/verification", label: "Verification", icon: ShieldCheck },
       { path: "/dashboard/admin/advertisements", label: "Advertisements", icon: Megaphone },
+      { path: "/dashboard/admin/complaints", label: "Complaints & Feedback", icon: AlertTriangle },
       { path: "/dashboard/admin/forecasting", label: "AI Forecasting", icon: TrendingUp },
       { path: "/dashboard/admin/seasonal", label: "Seasonal Insights", icon: Calendar },
       { path: "/dashboard/admin/impact", label: "Impact Dashboard", icon: Award },
@@ -118,9 +124,9 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-card border-r border-border p-6 flex flex-col">
+    <div className="h-screen bg-background flex overflow-hidden">
+      {/* Sidebar - Fixed */}
+      <aside className="w-64 bg-card border-r border-border p-6 flex flex-col h-screen overflow-y-auto">
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-primary">ShareGood</h1>
@@ -205,8 +211,8 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
         </Button>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 p-8 overflow-auto">
+      {/* Main Content - Scrollable */}
+      <main className="flex-1 h-screen overflow-y-auto p-8">
         {/* Advertisement Banner for donors, NGOs, and logistics */}
         {(userRole === 'donor' || userRole === 'ngo' || userRole === 'logistics') && (
           <AdvertisementBanner userRole={userRole} />

@@ -236,3 +236,272 @@ export const getPerformance = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const volunteerPickupTask = async (req: AuthRequest, res: Response) => {
+  try {
+    const task = await Task.findById(req.params.id)
+      .populate('surplusId', 'title donorId')
+      .populate('ngoId', 'name');
+
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Task not found' });
+    }
+
+    if (task.logisticsPartnerId) {
+      return res.status(400).json({ success: false, message: 'Task already claimed' });
+    }
+
+    // Assign as volunteer pickup
+    task.logisticsPartnerId = req.user?.userId as any;
+    task.status = 'assigned';
+    task.isVolunteerPickup = true;
+    await task.save();
+
+    // Update user volunteer stats
+    await User.findByIdAndUpdate(req.user?.userId, {
+      $inc: { 
+        'volunteerStats.totalDeliveries': 0, // Will increment on completion
+        'volunteerStats.activeDeliveries': 1 
+      }
+    });
+
+    await Surplus.findByIdAndUpdate(task.surplusId, {
+      logisticsPartnerId: req.user?.userId,
+    });
+
+    const logisticsPartner = await User.findById(req.user?.userId);
+    const surplus = task.surplusId as any;
+    const ngo = task.ngoId as any;
+
+    // Notify donor
+    await new Notification({
+      userId: surplus.donorId,
+      type: 'volunteer_pickup',
+      title: 'Volunteer Pickup Accepted',
+      message: `${logisticsPartner?.name || 'A volunteer'} has accepted to deliver your donation: ${surplus.title} for free!`,
+      data: {
+        taskId: task._id,
+        surplusId: task.surplusId,
+        isVolunteer: true,
+      },
+    }).save();
+
+    // Notify NGO
+    await new Notification({
+      userId: task.ngoId,
+      type: 'volunteer_pickup',
+      title: 'Volunteer Delivery',
+      message: `Volunteer ${logisticsPartner?.name || 'driver'} will deliver ${surplus.title} to your location.`,
+      data: {
+        taskId: task._id,
+        surplusId: task.surplusId,
+        isVolunteer: true,
+      },
+    }).save();
+
+    res.json({ 
+      success: true, 
+      message: 'Volunteer pickup accepted! Thank you for your service.', 
+      data: task 
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const completeVolunteerDelivery = async (req: AuthRequest, res: Response) => {
+  try {
+    const task = await Task.findOne({
+      _id: req.params.id,
+      logisticsPartnerId: req.user?.userId,
+      isVolunteerPickup: true,
+    })
+      .populate('surplusId', 'title donorId quantity')
+      .populate('ngoId', 'name beneficiaries');
+
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Volunteer task not found' });
+    }
+
+    task.status = 'delivered';
+    task.actualDelivery = new Date();
+    await task.save();
+
+    await Surplus.findByIdAndUpdate(task.surplusId, { status: 'delivered' });
+
+    const surplus = task.surplusId as any;
+    const ngo = task.ngoId as any;
+    const peopleHelped = ngo.beneficiaries || surplus.quantity || 10;
+    const pointsEarned = Math.floor(peopleHelped * 1.5);
+
+    // Update volunteer stats and points
+    const user = await User.findByIdAndUpdate(
+      req.user?.userId,
+      {
+        $inc: {
+          'volunteerStats.totalDeliveries': 1,
+          'volunteerStats.activeDeliveries': -1,
+          'volunteerStats.peopleHelped': peopleHelped,
+          'volunteerStats.points': pointsEarned,
+          'volunteerStats.currentStreak': 1,
+        },
+        $set: {
+          'volunteerStats.lastDeliveryDate': new Date(),
+        },
+      },
+      { new: true }
+    );
+
+    // Check for badge achievements
+    const badges = [];
+    const stats = user?.volunteerStats;
+    if (stats?.totalDeliveries === 1) badges.push('first_delivery');
+    if (stats?.totalDeliveries === 10) badges.push('champion');
+    if (stats?.totalDeliveries === 50) badges.push('hero');
+    if (stats?.currentStreak && stats.currentStreak >= 7) badges.push('weekly_warrior');
+
+    if (badges.length > 0) {
+      await User.findByIdAndUpdate(req.user?.userId, {
+        $addToSet: { 'volunteerStats.badges': { $each: badges } },
+      });
+    }
+
+    // Notifications
+    await new Notification({
+      userId: surplus.donorId,
+      type: 'delivery_update',
+      title: 'Volunteer Delivery Completed',
+      message: `Your donation "${surplus.title}" was successfully delivered by our volunteer. Thank you!`,
+      data: { taskId: task._id, surplusId: task.surplusId, status: 'delivered' },
+    }).save();
+
+    await new Notification({
+      userId: task.ngoId,
+      type: 'delivery_update',
+      title: 'Volunteer Delivery Received',
+      message: `${surplus.title} has been delivered by a volunteer. Please confirm receipt.`,
+      data: { taskId: task._id, surplusId: task.surplusId, status: 'delivered' },
+    }).save();
+
+    res.json({
+      success: true,
+      message: `Delivery completed! You earned ${pointsEarned} points and helped ${peopleHelped} people!`,
+      data: {
+        task,
+        impact: {
+          pointsEarned,
+          peopleHelped,
+          newBadges: badges,
+          totalDeliveries: stats?.totalDeliveries || 1,
+          totalPoints: stats?.points || pointsEarned,
+        },
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getVolunteerStats = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await User.findById(req.user?.userId).select('volunteerStats name');
+    
+    if (!user?.volunteerStats) {
+      return res.json({
+        success: true,
+        data: {
+          totalDeliveries: 0,
+          peopleHelped: 0,
+          points: 0,
+          level: 1,
+          badges: [],
+          currentStreak: 0,
+        },
+      });
+    }
+
+    const level = Math.floor(user.volunteerStats.points / 100) + 1;
+    const nextLevelPoints = level * 100;
+    const progressToNextLevel = ((user.volunteerStats.points % 100) / 100) * 100;
+
+    res.json({
+      success: true,
+      data: {
+        ...user.volunteerStats,
+        level,
+        nextLevelPoints,
+        progressToNextLevel,
+        name: user.name,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getLeaderboard = async (req: AuthRequest, res: Response) => {
+  try {
+    const { period = 'all' } = req.query;
+    let dateFilter = {};
+
+    if (period === 'week') {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      dateFilter = { 'volunteerStats.lastDeliveryDate': { $gte: weekAgo } };
+    } else if (period === 'month') {
+      const monthAgo = new Date();
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      dateFilter = { 'volunteerStats.lastDeliveryDate': { $gte: monthAgo } };
+    }
+
+    const leaderboard = await User.find({
+      role: 'logistics',
+      'volunteerStats.totalDeliveries': { $gt: 0 },
+      ...dateFilter,
+    })
+      .select('name volunteerStats.totalDeliveries volunteerStats.peopleHelped volunteerStats.points volunteerStats.badges')
+      .sort({ 'volunteerStats.points': -1 })
+      .limit(50);
+
+    const currentUserRank = leaderboard.findIndex(
+      (u: any) => u._id.toString() === req.user?.userId
+    ) + 1;
+
+    res.json({
+      success: true,
+      data: {
+        leaderboard,
+        currentUserRank: currentUserRank || null,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getPublicProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await User.findById(req.params.userId).select(
+      'name volunteerStats.totalDeliveries volunteerStats.peopleHelped volunteerStats.badges volunteerStats.points'
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const level = Math.floor((user.volunteerStats?.points || 0) / 100) + 1;
+
+    res.json({
+      success: true,
+      data: {
+        name: user.name,
+        totalDeliveries: user.volunteerStats?.totalDeliveries || 0,
+        peopleHelped: user.volunteerStats?.peopleHelped || 0,
+        badges: user.volunteerStats?.badges || [],
+        level,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
