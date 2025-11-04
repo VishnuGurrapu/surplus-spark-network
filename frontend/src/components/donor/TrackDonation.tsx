@@ -3,18 +3,42 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { QrCode, Search, CheckCircle2, Package, Truck, MapPin, Loader2, AlertCircle, Navigation } from "lucide-react";
-import { trackDonationById } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { QrCode, Search, CheckCircle2, Package, Truck, MapPin, Loader2, AlertCircle, Navigation, Heart, Star, ThumbsUp, MessageSquare, Clock, CheckCircle, Users } from "lucide-react";
+import { trackDonationById, getDonorSurplus } from "@/lib/api";
 import { loadGoogleMapsScript, createMap, createMarker, geocodeAddress, getDirections } from "@/lib/googleMaps";
 
 const TrackDonation = () => {
   const [donationId, setDonationId] = useState("");
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [trackingData, setTrackingData] = useState<any>(null);
+  const [allDonations, setAllDonations] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState("search");
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<any>(null);
   const [mapLoading, setMapLoading] = useState(false);
+
+  // Fetch all donations on component mount
+  useEffect(() => {
+    fetchAllDonations();
+  }, []);
+
+  const fetchAllDonations = async () => {
+    try {
+      setInitialLoading(true);
+      const response = await getDonorSurplus();
+      if (response.success && response.data) {
+        setAllDonations(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching donations:', err);
+    } finally {
+      setInitialLoading(false);
+    }
+  };
 
   const handleTrack = async () => {
     if (!donationId.trim()) {
@@ -169,51 +193,218 @@ const TrackDonation = () => {
     ];
   };
 
+  const getStatusBadge = (status: string) => {
+    const statusConfig: any = {
+      'available': { variant: 'secondary', label: 'Available', className: 'bg-blue-100 text-blue-800' },
+      'claimed': { variant: 'default', label: 'Claimed', className: 'bg-purple-100 text-purple-800' },
+      'accepted': { variant: 'default', label: 'Accepted', className: 'bg-indigo-100 text-indigo-800' },
+      'in-transit': { variant: 'default', label: 'In Transit', className: 'bg-yellow-100 text-yellow-800' },
+      'delivered': { variant: 'default', label: 'Delivered', className: 'bg-green-100 text-green-800' },
+      'expired': { variant: 'destructive', label: 'Expired', className: 'bg-red-100 text-red-800' },
+    };
+    
+    const config = statusConfig[status] || statusConfig.available;
+    return <Badge className={config.className}>{config.label}</Badge>;
+  };
+
+  const getRatingStars = (rating: number) => {
+    return (
+      <div className="flex gap-0.5">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`w-4 h-4 ${
+              star <= rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+            }`}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const selectDonation = (donation: any) => {
+    setDonationId(donation._id);
+    handleTrackSpecific(donation._id);
+    setActiveTab('details');
+  };
+
+  const handleTrackSpecific = async (id: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await trackDonationById(id);
+
+      if (response.success && response.data) {
+        setTrackingData(response.data);
+        if (response.data.surplus?.location?.address) {
+          initializeMap(response.data);
+        }
+      } else {
+        setError(response.message || "Donation not found");
+      }
+    } catch (err: any) {
+      console.error('Track donation error:', err);
+      setError(err.message || "An error occurred while tracking");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="ml-2">Loading your donations...</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="max-w-6xl space-y-6">
       <div>
-        <h2 className="text-3xl font-bold mb-2">Track Donation</h2>
-        <p className="text-muted-foreground">Monitor your donation's journey in real-time</p>
+        <h2 className="text-3xl font-bold mb-2">Track Your Donations</h2>
+        <p className="text-muted-foreground">Monitor delivery status, location, and see how your donations made an impact</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Enter Tracking Details</CardTitle>
-          <CardDescription>Use donation ID to track your surplus item</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input 
-              placeholder="Enter Donation ID" 
-              className="flex-1" 
-              value={donationId}
-              onChange={(e) => setDonationId(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleTrack()}
-            />
-            <Button onClick={handleTrack} disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Search className="w-4 h-4 mr-2" />}
-              Track
-            </Button>
-          </div>
-          <div className="text-center py-4">
-            <p className="text-sm text-muted-foreground mb-3">OR</p>
-            <Button variant="outline" disabled>
-              <QrCode className="w-4 h-4 mr-2" />
-              Scan QR Code (Coming Soon)
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="all">All Donations ({allDonations.length})</TabsTrigger>
+          <TabsTrigger value="search">Search by ID</TabsTrigger>
+          <TabsTrigger value="details" disabled={!trackingData}>Tracking Details</TabsTrigger>
+        </TabsList>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+        {/* All Donations Tab */}
+        <TabsContent value="all" className="space-y-4">
+          <div className="grid gap-4">
+            {allDonations.length === 0 ? (
+              <Card>
+                <CardContent className="pt-6 text-center">
+                  <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No donations yet</p>
+                </CardContent>
+              </Card>
+            ) : (
+              allDonations.map((donation) => (
+                <Card key={donation._id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => selectDonation(donation)}>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="text-lg font-semibold">{donation.title}</h3>
+                          {getStatusBadge(donation.status)}
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">{donation.description}</p>
+                        <div className="flex gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Package className="w-4 h-4" />
+                            {donation.quantity} {donation.unit}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            {formatDate(donation.createdAt)}
+                          </span>
+                          {donation.claimedBy && (
+                            <span className="flex items-center gap-1">
+                              <Users className="w-4 h-4" />
+                              Claimed by NGO
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm">
+                        <Navigation className="w-4 h-4 mr-2" />
+                        Track
+                      </Button>
+                    </div>
 
-      {trackingData && (
-        <>
+                    {/* NGO Feedback Preview */}
+                    {donation.ngoFeedback && (
+                      <div className="mt-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Heart className="w-4 h-4 text-green-600" />
+                            <span className="text-sm font-semibold text-green-900 dark:text-green-100">NGO Feedback Received</span>
+                          </div>
+                          {getRatingStars(donation.ngoFeedback.rating)}
+                        </div>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
+                          {donation.ngoFeedback.message}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Utilization Status */}
+                    {donation.status === 'delivered' && !donation.ngoFeedback && (
+                      <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-900">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-yellow-600" />
+                          <span className="text-sm text-yellow-900 dark:text-yellow-100">
+                            Delivered - Awaiting utilization feedback from NGO
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Search by ID Tab */}
+        <TabsContent value="search">
+          <Card>
+            <CardHeader>
+              <CardTitle>Search by Donation ID</CardTitle>
+              <CardDescription>Enter your donation ID to track specific item</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Enter Donation ID" 
+                  className="flex-1" 
+                  value={donationId}
+                  onChange={(e) => setDonationId(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleTrack()}
+                />
+                <Button onClick={handleTrack} disabled={loading}>
+                  {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Search className="w-4 h-4 mr-2" />}
+                  Track
+                </Button>
+              </div>
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground mb-3">OR</p>
+                <Button variant="outline" disabled>
+                  <QrCode className="w-4 h-4 mr-2" />
+                  Scan QR Code (Coming Soon)
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tracking Details Tab */}
+        <TabsContent value="details" className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {trackingData && (
+            <>
           <Card>
             <CardHeader>
               <CardTitle>{trackingData.surplus.title}</CardTitle>
@@ -307,21 +498,66 @@ const TrackDonation = () => {
             </Card>
           )}
 
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <QrCode className="w-8 h-8 text-primary" />
-                <div>
-                  <p className="font-medium">Verified Donation</p>
-                  <p className="text-sm text-muted-foreground">
-                    This donation is tracked in our system for complete transparency
-                  </p>
+            {/* NGO Feedback & Utilization */}
+            {trackingData.surplus.ngoFeedback && (
+              <Card className="border-green-500/20 bg-green-50 dark:bg-green-950/20">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Heart className="w-5 h-5 text-green-600" />
+                      Impact & Utilization Feedback
+                    </CardTitle>
+                    {getRatingStars(trackingData.surplus.ngoFeedback.rating)}
+                  </div>
+                  <CardDescription>See how your donation made a difference</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-green-900 dark:text-green-100 mb-2">
+                      {trackingData.surplus.ngoFeedback.title}
+                    </h4>
+                    <p className="text-gray-700 dark:text-gray-300 mb-4">
+                      {trackingData.surplus.ngoFeedback.message}
+                    </p>
+                  </div>
+                  {trackingData.surplus.ngoFeedback.impact && (
+                    <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-green-200 dark:border-green-900">
+                      <div className="flex items-start gap-2">
+                        <ThumbsUp className="w-5 h-5 text-green-600 mt-0.5" />
+                        <div>
+                          <p className="font-medium text-green-900 dark:text-green-100 mb-1">Impact Achieved:</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">
+                            {trackingData.surplus.ngoFeedback.impact}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="w-4 h-4" />
+                    <span>Feedback submitted {formatDate(trackingData.surplus.ngoFeedback.submittedAt)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="w-8 h-8 text-primary" />
+                  <div>
+                    <p className="font-medium">Verified & Tracked Donation</p>
+                    <p className="text-sm text-muted-foreground">
+                      This donation is tracked in our system for complete transparency and accountability
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
+              </CardContent>
+            </Card>
+          </>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

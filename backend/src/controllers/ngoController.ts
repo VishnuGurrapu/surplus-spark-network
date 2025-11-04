@@ -355,3 +355,88 @@ export const markRequestReceived = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const submitDonationFeedback = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { rating, title, message, impact } = req.body;
+
+    // Validate input
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Rating must be between 1 and 5' 
+      });
+    }
+
+    if (!title || !message) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Title and message are required' 
+      });
+    }
+
+    // Find the surplus item claimed by this NGO
+    const surplus = await Surplus.findOne({
+      _id: id,
+      claimedBy: req.user?.userId,
+    }).populate('donorId', 'name email');
+
+    if (!surplus) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Surplus not found or not claimed by you' 
+      });
+    }
+
+    // Check if item is delivered
+    if (surplus.status !== 'delivered') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'You can only give feedback on delivered donations' 
+      });
+    }
+
+    // Check if feedback already exists
+    if (surplus.ngoFeedback) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Feedback already submitted for this donation' 
+      });
+    }
+
+    // Add feedback to surplus
+    surplus.ngoFeedback = {
+      rating,
+      title,
+      message,
+      impact,
+      submittedAt: new Date(),
+    };
+
+    await surplus.save();
+
+    // Create notification for donor
+    const ngo = await User.findById(req.user?.userId);
+    
+    await new Notification({
+      userId: surplus.donorId,
+      type: 'feedback_received',
+      title: '❤️ Feedback on Your Donation',
+      message: `${ngo?.name || 'An NGO'} has given ${rating}-star feedback on your donation: ${surplus.title}`,
+      data: {
+        surplusId: surplus._id,
+        ngoId: req.user?.userId,
+        rating,
+      },
+    }).save();
+
+    res.json({
+      success: true,
+      message: 'Thank you for your feedback! The donor has been notified.',
+      data: surplus,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

@@ -11,6 +11,8 @@ import notificationRoutes from './routes/notificationRoutes';
 import aadhaarRoutes from './routes/aadhaarRoutes';
 import chatbotRoutes from './routes/chatbotRoutes';
 import advertisementRoutes from './routes/advertisementRoutes';
+import complaintRoutes from './routes/complaintRoutes';
+import feedbackRoutes from './routes/feedbackRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -43,6 +45,8 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/aadhaar', aadhaarRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/advertisements', advertisementRoutes);
+app.use('/api/complaints', complaintRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // Health check route
 app.get('/api/health', (req: Request, res: Response) => {
