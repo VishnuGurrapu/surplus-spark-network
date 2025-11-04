@@ -10,6 +10,8 @@ import {
   trackDonation,
   acceptSurplusRequest,
   rejectSurplusRequest,
+  generateImpactCard,
+  getPublicDonorProfile,
 } from '../controllers/donorController';
 import { getDonorLeaderboard } from '../controllers/leaderboardController';
 
@@ -36,5 +38,7 @@ router.get('/tracking/:id', trackDonation);
 router.get('/leaderboard', getDonorLeaderboard);
 router.post('/surplus/:id/accept', requireVerification, acceptSurplusRequest);
 router.post('/surplus/:id/reject', requireVerification, rejectSurplusRequest);
+router.get('/impact-card/:id', generateImpactCard);
+router.get('/public-profile/:donorId', getPublicDonorProfile);
 
 export default router;

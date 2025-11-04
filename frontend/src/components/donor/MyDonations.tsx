@@ -4,11 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2, CheckCircle, XCircle, Package, Users, Clock, Truck } from "lucide-react";
-import { getDonorSurplus, Surplus, acceptSurplusRequest, rejectSurplusRequest } from "@/lib/api";
+import { AlertCircle, Loader2, CheckCircle, XCircle, Package, Users, Clock, Truck, Share2 } from "lucide-react";
+import { getDonorSurplus, Surplus, acceptSurplusRequest, rejectSurplusRequest, generateImpactCard } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import ImpactCard from "./ImpactCard";
 
 const MyDonations = () => {
   const { toast } = useToast();
@@ -19,6 +20,8 @@ const MyDonations = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [processedDonations, setProcessedDonations] = useState<Set<string>>(new Set());
+  const [impactCardData, setImpactCardData] = useState<any>(null);
+  const [showImpactCard, setShowImpactCard] = useState(false);
 
   useEffect(() => {
     fetchDonations();
@@ -122,6 +125,32 @@ const MyDonations = () => {
         toast({
           title: "Error",
           description: response.message || "Failed to reject request",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleGenerateImpactCard = async (donation: Surplus) => {
+    try {
+      setActionLoading(donation._id);
+      const response = await generateImpactCard(donation._id);
+
+      if (response.success && response.data) {
+        setImpactCardData(response.data);
+        setShowImpactCard(true);
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to generate impact card",
           variant: "destructive",
         });
       }
@@ -330,9 +359,31 @@ const MyDonations = () => {
                               Accept to confirm and wait for logistics pickup
                             </p>
                           </div>
+                        ) : donation.status === 'delivered' ? (
+                          <div className="w-full space-y-3">
+                            <Badge className={`${getStatusColor(donation.status)} text-sm px-4 py-1.5`}>
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Delivered
+                            </Badge>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleGenerateImpactCard(donation)}
+                              disabled={actionLoading === donation._id}
+                              className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                            >
+                              {actionLoading === donation._id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Share2 className="w-4 h-4 mr-2" />
+                                  Share Impact
+                                </>
+                              )}
+                            </Button>
+                          </div>
                         ) : (
                           <Badge className={`${getStatusColor(donation.status)} text-sm px-4 py-1.5`}>
-                            {donation.status === 'delivered' && <CheckCircle className="w-3 h-3 mr-1" />}
                             {donation.status === 'in-transit' && <Truck className="w-3 h-3 mr-1" />}
                             {donation.status === 'accepted' && <Clock className="w-3 h-3 mr-1" />}
                             {donation.status === 'available' && <Clock className="w-3 h-3 mr-1" />}
@@ -412,6 +463,15 @@ const MyDonations = () => {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Impact Card Modal */}
+      {impactCardData && (
+        <ImpactCard
+          data={impactCardData}
+          open={showImpactCard}
+          onClose={() => setShowImpactCard(false)}
+        />
       )}
     </div>
   );

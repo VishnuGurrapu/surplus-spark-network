@@ -4,8 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { QrCode, Search, CheckCircle2, Package, Truck, MapPin, Loader2, AlertCircle, Navigation, Heart, Star, ThumbsUp, MessageSquare, Clock, CheckCircle, Users } from "lucide-react";
+import { QrCode, Search, CheckCircle2, Package, Truck, MapPin, Loader2, AlertCircle } from "lucide-react";
 import { trackDonationById, getDonorSurplus } from "@/lib/api";
 import { loadGoogleMapsScript, createMap, createMarker, geocodeAddress, getDirections } from "@/lib/googleMaps";
 
@@ -15,28 +14,32 @@ const TrackDonation = () => {
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [trackingData, setTrackingData] = useState<any>(null);
-  const [allDonations, setAllDonations] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState("search");
+  const [myDonations, setMyDonations] = useState<any[]>([]);
+  const [loadingDonations, setLoadingDonations] = useState(true);
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<any>(null);
   const [mapLoading, setMapLoading] = useState(false);
 
-  // Fetch all donations on component mount
+  // Fetch user's donations on mount
   useEffect(() => {
-    fetchAllDonations();
+    fetchMyDonations();
   }, []);
 
-  const fetchAllDonations = async () => {
+  const fetchMyDonations = async () => {
     try {
-      setInitialLoading(true);
+      setLoadingDonations(true);
       const response = await getDonorSurplus();
       if (response.success && response.data) {
-        setAllDonations(response.data);
+        // Filter only donations that have been picked up or delivered
+        const activeDonations = response.data.filter(
+          (d: any) => d.status === 'in-transit' || d.status === 'delivered' || d.status === 'claimed'
+        );
+        setMyDonations(activeDonations);
       }
     } catch (err) {
       console.error('Error fetching donations:', err);
     } finally {
-      setInitialLoading(false);
+      setLoadingDonations(false);
     }
   };
 
@@ -277,88 +280,70 @@ const TrackDonation = () => {
         <p className="text-muted-foreground">Monitor delivery status, location, and see how your donations made an impact</p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="all">All Donations ({allDonations.length})</TabsTrigger>
-          <TabsTrigger value="search">Search by ID</TabsTrigger>
-          <TabsTrigger value="details" disabled={!trackingData}>Tracking Details</TabsTrigger>
-        </TabsList>
+      {/* My Donations List */}
+      {!loadingDonations && myDonations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>My Active Donations</CardTitle>
+            <CardDescription>Click on a donation to track it</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {myDonations.map((donation) => (
+                <div
+                  key={donation._id}
+                  className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-muted/80 cursor-pointer transition-colors"
+                  onClick={() => {
+                    setDonationId(donation._id);
+                    handleTrack();
+                  }}
+                >
+                  <div className="flex-1">
+                    <p className="font-medium">{donation.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {donation.quantity} {donation.unit} - {donation.category}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant="outline" className="capitalize">
+                      {donation.status.replace('-', ' ')}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ID: {donation._id.slice(-8)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-        {/* All Donations Tab */}
-        <TabsContent value="all" className="space-y-4">
-          <div className="grid gap-4">
-            {allDonations.length === 0 ? (
-              <Card>
-                <CardContent className="pt-6 text-center">
-                  <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No donations yet</p>
-                </CardContent>
-              </Card>
-            ) : (
-              allDonations.map((donation) => (
-                <Card key={donation._id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => selectDonation(donation)}>
-                  <CardContent className="pt-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-lg font-semibold">{donation.title}</h3>
-                          {getStatusBadge(donation.status)}
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2">{donation.description}</p>
-                        <div className="flex gap-4 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Package className="w-4 h-4" />
-                            {donation.quantity} {donation.unit}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            {formatDate(donation.createdAt)}
-                          </span>
-                          {donation.claimedBy && (
-                            <span className="flex items-center gap-1">
-                              <Users className="w-4 h-4" />
-                              Claimed by NGO
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        <Navigation className="w-4 h-4 mr-2" />
-                        Track
-                      </Button>
-                    </div>
-
-                    {/* NGO Feedback Preview */}
-                    {donation.ngoFeedback && (
-                      <div className="mt-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Heart className="w-4 h-4 text-green-600" />
-                            <span className="text-sm font-semibold text-green-900 dark:text-green-100">NGO Feedback Received</span>
-                          </div>
-                          {getRatingStars(donation.ngoFeedback.rating)}
-                        </div>
-                        <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
-                          {donation.ngoFeedback.message}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Utilization Status */}
-                    {donation.status === 'delivered' && !donation.ngoFeedback && (
-                      <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-900">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-yellow-600" />
-                          <span className="text-sm text-yellow-900 dark:text-yellow-100">
-                            Delivered - Awaiting utilization feedback from NGO
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))
-            )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Enter Tracking Details</CardTitle>
+          <CardDescription>Use donation ID to track your surplus item</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input 
+              placeholder="Enter Donation ID" 
+              className="flex-1" 
+              value={donationId}
+              onChange={(e) => setDonationId(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleTrack()}
+            />
+            <Button onClick={handleTrack} disabled={loading}>
+              {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Search className="w-4 h-4 mr-2" />}
+              Track
+            </Button>
+          </div>
+          <div className="text-center py-4">
+            <p className="text-sm text-muted-foreground mb-3">OR</p>
+            <Button variant="outline" disabled>
+              <QrCode className="w-4 h-4 mr-2" />
+              Scan QR Code (Coming Soon)
+            </Button>
           </div>
         </TabsContent>
 
@@ -407,10 +392,20 @@ const TrackDonation = () => {
             <>
           <Card>
             <CardHeader>
-              <CardTitle>{trackingData.surplus.title}</CardTitle>
-              <CardDescription>
-                {trackingData.surplus.quantity} {trackingData.surplus.unit} - {trackingData.surplus.category}
-              </CardDescription>
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle>{trackingData.surplus.title}</CardTitle>
+                  <CardDescription>
+                    {trackingData.surplus.quantity} {trackingData.surplus.unit} - {trackingData.surplus.category}
+                  </CardDescription>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium">Donation ID</p>
+                  <p className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">
+                    {trackingData.surplus._id}
+                  </p>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-8">
