@@ -201,14 +201,25 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
           })}
         </nav>
 
-        <Button
-          variant="outline"
-          className="w-full mt-4 panel-hover-style hover-indigo-glow"
-          onClick={handleLogout}
-        >
-          <LogOut className="w-4 h-4 mr-2" />
-          Logout
-        </Button>
+        <div className="space-y-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-xs text-muted-foreground hover:text-primary"
+            onClick={() => window.open('/be-a-sponsor', '_blank')}
+          >
+            <Award className="w-3 h-3 mr-2" />
+            Be a Sponsor
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full panel-hover-style hover-indigo-glow"
+            onClick={handleLogout}
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
+        </div>
       </aside>
 
       {/* Main Content - Scrollable */}

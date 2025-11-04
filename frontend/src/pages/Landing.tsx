@@ -1,7 +1,13 @@
 import { Button } from "@/components/ui/button";
+<<<<<<< Updated upstream
 import { ArrowRight, Heart, TrendingUp, Users, Sparkles, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin, Youtube, Star, Shield, Award } from "lucide-react";
+=======
+import { ArrowRight, Heart, TrendingUp, Users, Sparkles, Award } from "lucide-react";
+>>>>>>> Stashed changes
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import SponsorBanner from "@/components/ui/SponsorBanner";
+import SponsorCarousel from "@/components/ui/SponsorCarousel";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -53,15 +59,43 @@ const Landing = () => {
             Join the intelligent network connecting donors, NGOs, and logistics partners 
             to redistribute surplus food, clothing, books, and more to those who need them.
           </p>
-          
-          <Button 
-            size="lg" 
-            className="text-lg px-8 shadow-lg hover:shadow-xl transition-all duration-300"
-            onClick={() => navigate("/select-role")}
-          >
-            Get Started
-            <ArrowRight className="ml-2 w-5 h-5" />
-          </Button>
+        </motion.div>
+
+        {/* Sponsor Carousel - Auto-scrolling horizontal carousel */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4, duration: 0.6 }}
+          className="mt-16 -mx-4 md:mx-0"
+        >
+          <SponsorCarousel />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.6 }}
+          className="text-center mt-12"
+        >
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Button 
+              size="lg" 
+              className="text-lg px-8 shadow-lg hover:shadow-xl transition-all duration-300"
+              onClick={() => navigate("/select-role")}
+            >
+              Get Started
+              <ArrowRight className="ml-2 w-5 h-5" />
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline"
+              className="text-lg px-8 shadow-lg hover:shadow-xl transition-all duration-300"
+              onClick={() => navigate("/be-a-sponsor")}
+            >
+              <Award className="mr-2 w-5 h-5" />
+              Be a Sponsor
+            </Button>
+          </div>
         </motion.div>
 
         {/* Features Grid */}

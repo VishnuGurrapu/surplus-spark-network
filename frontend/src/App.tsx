@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
 import RoleSelection from "./pages/RoleSelection";
 import Auth from "./pages/Auth";
+import SponsorInfo from "./pages/SponsorInfo";
 import DonorDashboard from "./pages/dashboards/DonorDashboard";
 import NGODashboard from "./pages/dashboards/NGODashboard";
 import LogisticsDashboard from "./pages/dashboards/LogisticsDashboard";
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/" element={<Landing />} />
           <Route path="/select-role" element={<RoleSelection />} />
           <Route path="/auth/:role" element={<Auth />} />
+          <Route path="/be-a-sponsor" element={<SponsorInfo />} />
           <Route 
             path="/dashboard/donor/*" 
             element={
