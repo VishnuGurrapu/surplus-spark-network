@@ -319,7 +319,7 @@ export const getPublicDonorProfile = async (req: AuthRequest, res: Response) => 
     const { donorId } = req.params;
 
     const donor = await User.findById(donorId).select('name createdAt');
-    if (!donor || donor.role !== 'donor') {
+    if (!donor) {
       return res.status(404).json({ success: false, message: 'Donor not found' });
     }
 

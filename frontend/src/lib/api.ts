@@ -1761,3 +1761,11 @@ export const getPublicProfile = async (userId: string) => {
     throw error;
   }
 };
+
+export const generateImpactCard = async (donationId: string) => {
+  return apiRequest(`/donor/impact-card/${donationId}`, { method: 'GET' });
+};
+
+export const getPublicDonorProfile = async (donorId: string) => {
+  return apiRequest(`/donor/public-profile/${donorId}`, { method: 'GET' });
+};
