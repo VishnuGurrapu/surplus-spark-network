@@ -796,6 +796,29 @@ export const rejectSurplusRequest = async (id: string): Promise<ApiResponse<any>
   }
 };
 
+export const directDonateToNGO = async (id: string): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/donor/surplus/${id}/direct-donate`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    return response.json();
+  } catch (error) {
+    console.error('Network error during direct donate:', error);
+    throw error;
+  }
+};
+
 // Logistics interfaces and API functions
 export interface Task {
   _id: string;

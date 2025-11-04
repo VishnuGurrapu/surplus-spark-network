@@ -18,6 +18,7 @@ import {
   verifyPAN,
   downloadTaxReceipt,
   getPublicNGORequests,
+  directDonateToNGO,
 } from '../controllers/donorController';
 import { getDonorLeaderboard } from '../controllers/leaderboardController';
 
@@ -42,6 +43,7 @@ router.get('/surplus/:id', getSurplusById);
 router.patch('/surplus/:id', updateSurplus);
 router.post('/surplus/:id/accept', requireVerification, acceptSurplusRequest);
 router.post('/surplus/:id/reject', requireVerification, rejectSurplusRequest);
+router.post('/surplus/:id/direct-donate', requireVerification, directDonateToNGO);
 
 // ==================== TAX RECEIPT ROUTES (MUST COME FIRST) ====================
 router.get('/tax-receipts', getTaxReceipts);

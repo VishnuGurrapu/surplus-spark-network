@@ -5,11 +5,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2, CheckCircle, XCircle, Package, Users, Clock, Truck, Share2 } from "lucide-react";
-import { getDonorSurplus, Surplus, acceptSurplusRequest, rejectSurplusRequest, generateImpactCard } from "@/lib/api";
+import { getDonorSurplus, Surplus, acceptSurplusRequest, rejectSurplusRequest, generateImpactCard, directDonateToNGO } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import ImpactCard from "./ImpactCard";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const MyDonations = () => {
   const { toast } = useToast();
@@ -151,6 +162,47 @@ const MyDonations = () => {
         toast({
           title: "Error",
           description: response.message || "Failed to generate impact card",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "An error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDirectDonate = async (donation: Surplus) => {
+    try {
+      setActionLoading(donation._id);
+
+      const response = await directDonateToNGO(donation._id);
+
+      if (response.success) {
+        toast({
+          title: "Success!",
+          description: "You are now delivering directly. Please deliver the item to the NGO.",
+        });
+        
+        // Mark as processed and update local state
+        setProcessedDonations(prev => new Set(prev).add(donation._id));
+        setDonations(prevDonations => 
+          prevDonations.map(d => 
+            d._id === donation._id 
+              ? { ...d, status: 'in-transit' as any }
+              : d
+          )
+        );
+        
+        await fetchDonations();
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to initiate direct delivery",
           variant: "destructive",
         });
       }
@@ -359,6 +411,58 @@ const MyDonations = () => {
                               Accept to confirm and wait for logistics pickup
                             </p>
                           </div>
+                        ) : donation.status === 'accepted' && !processedDonations.has(donation._id) ? (
+                          <div className="w-full space-y-3">
+                            <Badge className={`${getStatusColor(donation.status)} text-sm px-3 py-1`}>
+                              <Clock className="w-3 h-3 mr-1" />
+                              Awaiting Pickup
+                            </Badge>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  disabled={actionLoading === donation._id}
+                                  className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600"
+                                >
+                                  <Truck className="w-4 h-4 mr-2" />
+                                  Deliver Directly
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Deliver Item Directly?</AlertDialogTitle>
+                                  <AlertDialogDescription className="space-y-3">
+                                    <p>
+                                      You are about to deliver <strong>{donation.title}</strong> directly to{' '}
+                                      <strong>{getRecipientName(donation)}</strong>.
+                                    </p>
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900">
+                                      <p className="font-semibold mb-2">📦 What happens next:</p>
+                                      <ul className="list-disc list-inside space-y-1">
+                                        <li>You will be responsible for delivering this item</li>
+                                        <li>The NGO will be notified of your direct delivery</li>
+                                        <li>No logistics partner will be involved</li>
+                                        <li>You can mark as delivered after handover</li>
+                                      </ul>
+                                    </div>
+                                    <p className="text-sm">
+                                      Are you sure you want to handle the delivery yourself?
+                                    </p>
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDirectDonate(donation)}>
+                                    Yes, I'll Deliver
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                            <p className="text-xs text-muted-foreground text-center">
+                              Deliver yourself or wait for logistics pickup
+                            </p>
+                          </div>
                         ) : donation.status === 'delivered' ? (
                           <div className="w-full space-y-3">
                             <Badge className={`${getStatusColor(donation.status)} text-sm px-4 py-1.5`}>
@@ -385,7 +489,6 @@ const MyDonations = () => {
                         ) : (
                           <Badge className={`${getStatusColor(donation.status)} text-sm px-4 py-1.5`}>
                             {donation.status === 'in-transit' && <Truck className="w-3 h-3 mr-1" />}
-                            {donation.status === 'accepted' && <Clock className="w-3 h-3 mr-1" />}
                             {donation.status === 'available' && <Clock className="w-3 h-3 mr-1" />}
                             {donation.status === 'claimed' && <AlertCircle className="w-3 h-3 mr-1" />}
                             {donation.status === 'accepted' ? 'Awaiting Pickup' : donation.status.replace('-', ' ')}

@@ -14,6 +14,7 @@ import TaxBenefitsPage from "@/pages/donor/TaxBenefitsPage";
 import DonateMoney from "@/components/donor/DonateMoney";
 import DonationHistory from "@/components/donor/DonationHistory";
 import ViewNGORequests from "@/components/donor/ViewNGORequests";
+import BrowseNGOs from "@/components/donor/BrowseNGOs";
 
 const DonorDashboard = () => {
   return (
@@ -22,6 +23,7 @@ const DonorDashboard = () => {
         <Route index element={<DonorHome />} />
         <Route path="donations" element={<MyDonations />} />
         <Route path="add-surplus" element={<AddSurplus />} />
+        <Route path="browse-ngos" element={<BrowseNGOs />} />
         <Route path="ngo-requests" element={<ViewNGORequests />} />
         <Route path="donate-money" element={<DonateMoney />} />
         <Route path="donation-history" element={<DonationHistory />} />

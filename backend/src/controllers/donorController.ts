@@ -628,3 +628,60 @@ export const getPublicNGORequests = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const directDonateToNGO = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const surplus = await Surplus.findOne({
+      _id: id,
+      donorId: req.user?.userId,
+      status: 'accepted', // Only accepted items can be directly donated
+    }).populate('claimedBy', 'name email');
+
+    if (!surplus) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Surplus not found or not in accepted status' 
+      });
+    }
+
+    // Update status directly to in-transit (donor is delivering themselves)
+    surplus.status = 'in-transit';
+    await surplus.save();
+
+    // Update task to show donor is handling delivery
+    const task = await Task.findOneAndUpdate(
+      { surplusId: surplus._id },
+      { 
+        status: 'picked-up',
+        actualPickup: new Date(),
+        notes: 'Donor delivering directly (self-delivery)'
+      },
+      { new: true }
+    );
+
+    // Notify NGO
+    const donor = await User.findById(req.user?.userId);
+    await new Notification({
+      userId: surplus.claimedBy,
+      type: 'delivery_update',
+      title: 'Donor Direct Delivery',
+      message: `${donor?.name || 'Donor'} is delivering ${surplus.title} directly to you. Please expect delivery soon.`,
+      data: {
+        surplusId: surplus._id,
+        donorId: req.user?.userId,
+        taskId: task?._id,
+      },
+    }).save();
+
+    res.json({
+      success: true,
+      message: 'Direct delivery initiated. Please deliver the item to the NGO.',
+      data: { surplus, task },
+    });
+  } catch (error: any) {
+    console.error('❌ Direct donate error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

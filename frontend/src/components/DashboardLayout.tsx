@@ -69,6 +69,7 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       { path: "/dashboard/donor", label: "Overview", icon: Home },
       { path: "/dashboard/donor/add-surplus", label: "Add Surplus", icon: Plus },
       { path: "/dashboard/donor/donations", label: "My Donations", icon: Package },
+      { path: "/dashboard/donor/browse-ngos", label: "Browse NGOs", icon: Users },
       { path: "/dashboard/donor/ngo-requests", label: "NGO Requests", icon: Inbox },
       { path: "/dashboard/donor/donate-money", label: "Donate Money", icon: DollarSign },
       { path: "/dashboard/donor/donation-history", label: "Donation History", icon: Wallet },
