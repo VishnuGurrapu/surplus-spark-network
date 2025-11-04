@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Home, Plus, Package, QrCode, TrendingUp, Trophy, User } from "lucide-react";
 import DonorHome from "@/components/donor/DonorHome";
 import AddSurplus from "@/components/donor/AddSurplus";
 import MyDonations from "@/components/donor/MyDonations";
@@ -12,6 +11,9 @@ import Profile from "@/components/donor/Profile";
 import NearbyNGOFinder from "@/components/donor/NearbyNGOFinder";
 import SupportCenter from "@/components/ui/SupportCenter";
 import TaxBenefitsPage from "@/pages/donor/TaxBenefitsPage";
+import DonateMoney from "@/components/donor/DonateMoney";
+import DonationHistory from "@/components/donor/DonationHistory";
+import ViewNGORequests from "@/components/donor/ViewNGORequests";
 
 const DonorDashboard = () => {
   return (
@@ -20,6 +22,9 @@ const DonorDashboard = () => {
         <Route index element={<DonorHome />} />
         <Route path="donations" element={<MyDonations />} />
         <Route path="add-surplus" element={<AddSurplus />} />
+        <Route path="ngo-requests" element={<ViewNGORequests />} />
+        <Route path="donate-money" element={<DonateMoney />} />
+        <Route path="donation-history" element={<DonationHistory />} />
         <Route path="track" element={<TrackDonation />} />
         <Route path="find-ngos" element={<NearbyNGOFinder />} />
         <Route path="impact" element={<Impact />} />

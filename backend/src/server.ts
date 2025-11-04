@@ -14,6 +14,7 @@ import chatbotRoutes from './routes/chatbotRoutes';
 import advertisementRoutes from './routes/advertisementRoutes';
 import complaintRoutes from './routes/complaintRoutes';
 import feedbackRoutes from './routes/feedbackRoutes';
+import donationRoutes from './routes/donationRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -49,6 +50,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/donor', donorRoutes);
+app.use('/api/donations', donationRoutes);
 app.use('/api/ngo', ngoRoutes);
 app.use('/api/logistics', logisticsRoutes);
 app.use('/api/admin', adminRoutes);

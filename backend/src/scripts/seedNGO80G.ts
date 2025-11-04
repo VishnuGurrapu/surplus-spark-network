@@ -40,10 +40,16 @@ const seed80GNGOs = async () => {
         contactEmail: ngo.email,
         address: ngo.location || 'India',
         verifiedAt: new Date(),
+        // Add payment details
+        upiId: `${ngo.name.toLowerCase().replace(/\s+/g, '')}@upi`,
+        accountNo: `${Math.floor(100000000000 + Math.random() * 900000000000)}`,
+        ifscCode: `SBIN0${Math.floor(100000 + Math.random() * 900000)}`,
+        bankName: 'State Bank of India',
+        acceptsMonetaryDonations: true,
       });
 
       await ngo80G.save();
-      console.log(`✅ Created 80G record for ${ngo.name}`);
+      console.log(`✅ Created 80G record for ${ngo.name} with UPI: ${ngo80G.upiId}`);
     }
 
     console.log('🎉 Seeding completed successfully!');

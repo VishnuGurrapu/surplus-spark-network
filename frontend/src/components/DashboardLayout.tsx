@@ -2,7 +2,7 @@ import { ReactNode, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LogOut, Home, Plus, Package, TrendingUp, Users, Truck, Settings, QrCode, Trophy, User, AlertCircle, BarChart3, ShieldCheck, Calendar, Award, FileText, Map, CheckCircle, Bell, Megaphone, MessageSquare, AlertTriangle, Heart, Receipt } from "lucide-react";
+import { LogOut, Home, Plus, Package, TrendingUp, Users, Truck, Settings, QrCode, Trophy, User, AlertCircle, BarChart3, ShieldCheck, Calendar, Award, FileText, Map, CheckCircle, Bell, Megaphone, MessageSquare, AlertTriangle, Heart, Receipt, DollarSign, Wallet, Inbox } from "lucide-react";
 import { logout, getNotifications, markNotificationAsRead } from "@/lib/api";
 import {
   DropdownMenu,
@@ -69,6 +69,9 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       { path: "/dashboard/donor", label: "Overview", icon: Home },
       { path: "/dashboard/donor/add-surplus", label: "Add Surplus", icon: Plus },
       { path: "/dashboard/donor/donations", label: "My Donations", icon: Package },
+      { path: "/dashboard/donor/ngo-requests", label: "NGO Requests", icon: Inbox },
+      { path: "/dashboard/donor/donate-money", label: "Donate Money", icon: DollarSign },
+      { path: "/dashboard/donor/donation-history", label: "Donation History", icon: Wallet },
       { path: "/dashboard/donor/track", label: "Track Donation", icon: QrCode },
       { path: "/dashboard/donor/find-ngos", label: "Find NGOs", icon: Map },
       { path: "/dashboard/donor/tax-benefits", label: "Tax Benefits", icon: Receipt },
@@ -109,7 +112,6 @@ const DashboardLayout = ({ children, userRole }: DashboardLayoutProps) => {
       { path: "/dashboard/admin/complaints", label: "Complaints & Feedback", icon: AlertTriangle },
       { path: "/dashboard/admin/forecasting", label: "AI Forecasting", icon: TrendingUp },
       { path: "/dashboard/admin/seasonal", label: "Seasonal Insights", icon: Calendar },
-      { path: "/dashboard/admin/impact", label: "Impact Dashboard", icon: Award },
       { path: "/dashboard/admin/logs", label: "System Logs", icon: FileText },
       { path: "/dashboard/admin/profile", label: "Profile", icon: User },
     ],

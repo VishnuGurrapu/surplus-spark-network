@@ -17,6 +17,7 @@ import {
   get80GEligibleNGOs,
   verifyPAN,
   downloadTaxReceipt,
+  getPublicNGORequests,
 } from '../controllers/donorController';
 import { getDonorLeaderboard } from '../controllers/leaderboardController';
 
@@ -55,5 +56,8 @@ router.get('/impact-card/:id', generateImpactCard);
 router.get('/public-profile/:donorId', getPublicDonorProfile);
 router.get('/80g-ngos', get80GEligibleNGOs);
 router.post('/verify-pan', verifyPAN);
+
+// ==================== NGO REQUESTS ROUTE ====================
+router.get('/ngo-requests', getPublicNGORequests);
 
 export default router;

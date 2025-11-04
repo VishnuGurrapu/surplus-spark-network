@@ -608,3 +608,23 @@ export const downloadTaxReceipt = async (req: AuthRequest, res: Response) => {
     }
   }
 };
+
+export const getPublicNGORequests = async (req: AuthRequest, res: Response) => {
+  try {
+    // Import Request model at the top if not already imported
+    const Request = require('../models/Request').default;
+    
+    // Get all open NGO requests that donors can see
+    const requests = await Request.find({
+      status: 'open',
+    })
+      .populate('ngoId', 'name email location')
+      .sort({ urgency: -1, createdAt: -1 })
+      .limit(50);
+
+    res.json({ success: true, data: requests });
+  } catch (error: any) {
+    console.error('Error fetching public NGO requests:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
