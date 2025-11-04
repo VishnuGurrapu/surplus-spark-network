@@ -19,6 +19,13 @@ export interface ISurplus extends Document {
   claimedBy?: mongoose.Types.ObjectId;
   logisticsPartnerId?: mongoose.Types.ObjectId;
   images?: string[];
+  ngoFeedback?: {
+    rating: number;
+    title: string;
+    message: string;
+    impact: string;
+    submittedAt: Date;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -80,6 +87,17 @@ const surplusSchema = new Schema<ISurplus>(
       ref: 'User',
     },
     images: [String],
+    ngoFeedback: {
+      rating: {
+        type: Number,
+        min: 1,
+        max: 5,
+      },
+      title: String,
+      message: String,
+      impact: String,
+      submittedAt: Date,
+    },
   },
   {
     timestamps: true,

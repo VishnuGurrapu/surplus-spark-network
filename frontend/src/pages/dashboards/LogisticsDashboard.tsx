@@ -7,6 +7,7 @@ import CompletedDeliveries from "@/components/logistics/CompletedDeliveries";
 import RouteMap from "@/components/logistics/RouteMap";
 import Performance from "@/components/logistics/Performance";
 import LogisticsProfile from "@/components/logistics/LogisticsProfile";
+import SupportCenter from "@/components/ui/SupportCenter";
 
 const LogisticsDashboard = () => {
   return (
@@ -18,6 +19,7 @@ const LogisticsDashboard = () => {
         <Route path="completed" element={<CompletedDeliveries />} />
         <Route path="map" element={<RouteMap />} />
         <Route path="performance" element={<Performance />} />
+        <Route path="support" element={<SupportCenter />} />
         <Route path="profile" element={<LogisticsProfile />} />
       </Routes>
     </DashboardLayout>

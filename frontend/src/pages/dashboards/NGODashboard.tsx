@@ -10,6 +10,8 @@ import NGOLeaderboard from "@/components/ngo/NGOLeaderboard";
 import NGOProfile from "@/components/ngo/NGOProfile";
 import RequestTracking from "@/components/ngo/RequestTracking";
 import NearbyNGOFinder from "@/components/donor/NearbyNGOFinder";
+import SupportCenter from "@/components/ui/SupportCenter";
+import GiveDonationFeedback from "@/components/ngo/GiveDonationFeedback";
 
 const NGODashboard = () => {
   return (
@@ -24,6 +26,8 @@ const NGODashboard = () => {
         <Route path="urgent" element={<UrgentNeeds />} />
         <Route path="impact" element={<ImpactReports />} />
         <Route path="leaderboard" element={<NGOLeaderboard />} />
+        <Route path="give-feedback" element={<GiveDonationFeedback />} />
+        <Route path="support" element={<SupportCenter />} />
         <Route path="profile" element={<NGOProfile />} />
       </Routes>
     </DashboardLayout>

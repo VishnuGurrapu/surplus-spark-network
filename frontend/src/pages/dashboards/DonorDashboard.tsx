@@ -10,6 +10,7 @@ import Impact from "@/components/donor/Impact";
 import Leaderboard from "@/components/donor/Leaderboard";
 import Profile from "@/components/donor/Profile";
 import NearbyNGOFinder from "@/components/donor/NearbyNGOFinder";
+import SupportCenter from "@/components/ui/SupportCenter";
 
 const DonorDashboard = () => {
   return (
@@ -22,6 +23,7 @@ const DonorDashboard = () => {
         <Route path="find-ngos" element={<NearbyNGOFinder />} />
         <Route path="impact" element={<Impact />} />
         <Route path="leaderboard" element={<Leaderboard />} />
+        <Route path="support" element={<SupportCenter />} />
         <Route path="profile" element={<Profile />} />
       </Routes>
     </DashboardLayout>

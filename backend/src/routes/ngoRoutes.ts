@@ -12,6 +12,7 @@ import {
   markRequestReceived,
   getClaimedSurplus,
   confirmSurplusReceived,
+  submitDonationFeedback,
 } from '../controllers/ngoController';
 import { getNGOLeaderboard } from '../controllers/leaderboardController';
 
@@ -37,6 +38,7 @@ router.patch('/request/:id/received', markRequestReceived);
 router.post('/claim/:id', claimSurplus);
 router.get('/claimed-surplus', getClaimedSurplus);
 router.post('/surplus/:id/confirm-received', confirmSurplusReceived);
+router.post('/surplus/:id/feedback', submitDonationFeedback);
 router.get('/urgent-needs', getUrgentNeeds);
 router.get('/impact', getNGOImpact);
 router.get('/leaderboard', getNGOLeaderboard);
