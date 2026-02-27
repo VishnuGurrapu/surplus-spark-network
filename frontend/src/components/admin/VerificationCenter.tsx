@@ -6,16 +6,16 @@ const VerificationCenter = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold mb-2">Verification Center</h2>
-        <p className="text-muted-foreground">Blockchain and QR-based verification system</p>
+        <p className="text-muted-foreground"> and QR-based verification system</p>
       </div>
 
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="pt-6">
           <div className="text-center py-12">
             <ShieldCheck className="w-20 h-20 mx-auto mb-6 text-primary" />
-            <h3 className="text-2xl font-bold mb-3">Blockchain Verification System</h3>
+            <h3 className="text-2xl font-bold mb-3"> Verification System</h3>
             <p className="text-muted-foreground max-w-2xl mx-auto mb-6">
-              Every donation is secured on the blockchain for complete transparency and traceability. 
+              Every donation is secured on the  for complete transparency and traceability. 
               This ensures trust between donors, NGOs, and logistics partners.
             </p>
           </div>
@@ -51,7 +51,7 @@ const VerificationCenter = () => {
               <span className="font-bold">347</span>
             </div>
             <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-              <span>Blockchain Transactions</span>
+              <span> Transactions</span>
               <span className="font-bold">1,234</span>
             </div>
             <div className="flex items-center justify-between p-4 bg-muted rounded-lg">

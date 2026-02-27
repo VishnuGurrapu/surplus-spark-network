@@ -36,10 +36,6 @@ const Landing = () => {
           transition={{ duration: 0.6 }}
           className="text-center max-w-4xl mx-auto"
         >
-          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-6">
-            <Sparkles className="w-4 h-4" />
-            <span className="text-sm font-medium">Powered by AI & Blockchain</span>
-          </div>
           <div className="flex flex-col lg:flex-row items-center justify-center gap-8 mt-12 text-center lg:text-left">
   <img
     src="https://i.pinimg.com/1200x/13/9d/98/139d98651600bbf32f37bdde6ef08795.jpg"
